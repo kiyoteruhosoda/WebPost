@@ -22,7 +22,7 @@ from application.http_trace import HttpTrace, HttpResponseMeta, CookieSnapshot
 from application.http_trace_emitter import HttpTraceEmitter
 from application.trace_enrichers.core import HttpCoreTraceLogger
 from application.trace_enrichers.html_signals import HtmlSignalLogger
-from application.trace_enrichers.html_saver import HtmlSaver
+from infrastructure.http.http_artifact_saver import HttpArtifactSaver
 from typing import List, Tuple
 
 def _try_extract_title(html: str) -> Optional[str]:
@@ -88,7 +88,7 @@ class HttpStepHandler(StepHandler):
         self._trace = HttpTraceEmitter([
             HttpCoreTraceLogger(),
             HtmlSignalLogger(),
-            HtmlSaver(out_dir="tmp/http"),
+            HttpArtifactSaver(root="tmp/http"),
         ])
 
     def supports(self, step) -> bool:
@@ -182,6 +182,7 @@ class HttpStepHandler(StepHandler):
                 step_id=step.id,
                 method=step.request.method,
                 url=url,
+                allow_redirects=allow_redirects,
                 request_headers=step.request.headers or {},
                 request_form=deduped_form,
                 merged_from=composed.merged_from,

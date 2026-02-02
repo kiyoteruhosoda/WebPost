@@ -3,3 +3,5 @@
 /.vscode
 /tmp
 /webpost.egg-info
+__pycache__/
+*.pyc
