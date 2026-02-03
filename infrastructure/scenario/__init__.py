@@ -1,4 +1,4 @@
 # infrastructure/scenario/__init__.py
-from infrastructure.scenario.json_loader import JsonScenarioLoader, ScenarioLoadError
+from infrastructure.scenario.yaml_loader import YamlScenarioLoader, ScenarioLoadError
 
-__all__ = ["JsonScenarioLoader", "ScenarioLoadError"]
+__all__ = ["YamlScenarioLoader", "ScenarioLoadError"]

@@ -21,11 +21,15 @@ class ScenarioFileFinder:
         Returns:
             見つかったファイルのPath、見つからない場合はNone
         """
-        filename = f"{scenario_id}.json"
+        filenames = [
+            f"{scenario_id}.yaml",
+            f"{scenario_id}.yml",
+        ]
         
         # base_dirから再帰的に検索
-        for file_path in self.base_dir.rglob(filename):
-            if file_path.is_file():
-                return file_path
+        for filename in filenames:
+            for file_path in self.base_dir.rglob(filename):
+                if file_path.is_file():
+                    return file_path
         
         return None

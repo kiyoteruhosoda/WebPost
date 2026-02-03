@@ -79,8 +79,8 @@ curl -X POST http://localhost:8000/scenarios/fun_navi_reserve/runs \
 ## シナリオファイル検索
 
 - `scenarios/` ディレクトリ内を再帰的に検索
-- ファイル名: `{scenario_id}.json`
-- 例: `fun_navi_reserve` → `scenarios/fun_navi_reserve.json` または `scenarios/subdir/fun_navi_reserve.json`
+- ファイル名: `{scenario_id}.yaml` または `{scenario_id}.yml`
+- 例: `fun_navi_reserve` → `scenarios/fun_navi_reserve.yaml` または `scenarios/subdir/fun_navi_reserve.yml`
 
 ## 実装詳細
 
@@ -93,7 +93,7 @@ curl -X POST http://localhost:8000/scenarios/fun_navi_reserve/runs \
 ### 主要機能
 
 1. **シナリオファイル検索**: `ScenarioFileFinder` がscenariosディレクトリを再帰的に検索
-2. **JSONロード**: `JsonScenarioLoader` でシナリオをロード
+2. **YAMLロード**: `YamlScenarioLoader` でシナリオをロード
 3. **実行環境構築**: リクエストから `vars` と `secrets` を受け取り、実行コンテキストを構築
 4. **ステップ実行**: `StepExecutor` でシナリオを実行
 5. **結果返却**: 実行結果をJSON形式で返却

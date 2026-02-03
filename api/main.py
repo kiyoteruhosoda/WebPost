@@ -13,7 +13,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from infrastructure.scenario.file_finder import ScenarioFileFinder
-from infrastructure.scenario.json_loader import JsonScenarioLoader
+from infrastructure.scenario.yaml_loader import YamlScenarioLoader
 from infrastructure.secrets.env_secret_provider import EnvSecretProvider
 from infrastructure.logging.console_logger import ConsoleLogger
 from infrastructure.http.http_artifact_saver import HttpArtifactSaver
@@ -88,11 +88,11 @@ def run_scenario(
         if scenario_file is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Scenario file not found: {scenario_id}.json"
+                detail=f"Scenario file not found: {scenario_id}.yaml"
             )
         
         # 2. シナリオをロード
-        loader = JsonScenarioLoader()
+        loader = YamlScenarioLoader()
         scenario = loader.load_from_file(scenario_file)
         
         # 3. 実行環境を構築

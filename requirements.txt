@@ -8,3 +8,4 @@ redis==5.1.1
 rq==1.16.2
 python-dotenv==1.0.1
 loguru==0.7.2
+PyYAML==6.0.2

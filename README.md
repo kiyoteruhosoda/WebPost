@@ -83,7 +83,7 @@ domain/
 
 infrastructure/
   scenario/
-    json_loader.py        - JSONシナリオローダー
+    yaml_loader.py        - YAMLシナリオローダー
     file_finder.py        - シナリオファイル検索
   http/
     http_artifact_saver.py
@@ -96,7 +96,7 @@ api/
   main.py                 - FastAPI REST APIエンドポイント
 
 scenarios/
-  fun_navi_reserve.json   - サンプルシナリオ
+  fun_navi_reserve.yaml   - サンプルシナリオ
 
 scripts/
   run_api.py              - APIサーバー起動スクリプト
@@ -168,10 +168,10 @@ curl -X POST http://localhost:8000/scenarios/fun-navi-reserve/runs \
 
 ```bash
 # .envファイルから認証情報を読み込んで実行
-python scripts/test_scenario.py scenarios/fun_navi_reserve.json
+python scripts/test_scenario.py scenarios/fun_navi_reserve.yaml
 
 # モックモードで実行（外部依存なし）
-python scripts/test_scenario.py scenarios/fun_navi_reserve.json --mock
+python scripts/test_scenario.py scenarios/fun_navi_reserve.yaml --mock
 ```
 
 **注意**: `.env`ファイルに `FUNNAVI_FULLTIME_ID` と `FUNNAVI_PASSWORD` を設定する必要があります。
@@ -318,10 +318,10 @@ HTML構造変更に強い抽出方法：
 
 ```bash
 # モックモードで実行（常に成功）
-python scripts/test_scenario.py scenarios/fun_navi_reserve.json --mock
+python scripts/test_scenario.py scenarios/fun_navi_reserve.yaml --mock
 
 # 実際のWebサイトに対して実行
-python scripts/test_scenario.py scenarios/fun_navi_reserve.json
+python scripts/test_scenario.py scenarios/fun_navi_reserve.yaml
 ```
 
 モックモードの結果：
