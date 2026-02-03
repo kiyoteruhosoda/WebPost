@@ -1,33 +1,59 @@
-# Scenario Command Design
+# シナリオコマンド設計書（リファレンス）
 
-## Purpose
-- Provide a consistent command interface to execute scenarios by ID or file path.
-- Support YAML/YML/JSON scenario formats via format-specific loaders.
-- Return structured results for automation and monitoring.
+## 目的
+- シナリオ実行の操作を、CLI/HTTP双方で統一的に定義する。
+- YAML/YML/JSON形式のシナリオを、拡張子に基づいて確実に解決する。
+- 実行結果とエラーを、機械処理可能な形式で返す。
 
-## Command Surface
+## 対象と前提
+- 対象: シナリオ実行機能の利用者（API/CLIの利用者、運用担当）。
+- 前提: シナリオは `scenarios/` 配下に配置され、拡張子で形式が識別される。
+- 形式: `.yaml` / `.yml` / `.json` をサポートする。
 
-### CLI
+## コマンド体系
+
+### CLI: `scenario run`
+#### 目的
+- シナリオをローカルで実行し、結果を標準出力に返す。
+
+#### 形式
 ```
 scenario run --scenario-id <id> [--vars <json>] [--secrets <json>] [--format <yaml|yml|json>]
 scenario run --scenario-file <path> [--vars <json>] [--secrets <json>]
 ```
 
-### HTTP
+#### パラメータ
+| 名前 | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `--scenario-id` | string | いずれか必須 | `scenarios/` 配下のID検索に使用。 |
+| `--scenario-file` | string | いずれか必須 | 直接ファイルパスを指定する。 |
+| `--vars` | string(JSON) | 任意 | 変数入力。JSON文字列。 |
+| `--secrets` | string(JSON) | 任意 | シークレット入力。JSON文字列。 |
+| `--format` | string | 任意 | `--scenario-id` 使用時に拡張子解決を上書きする。 |
+
+#### 返却
+- 終了コード: `0`（成功）、`1`（失敗）
+- 標準出力: 実行サマリ、メタ情報、結果を出力
+- 標準エラー: 失敗時の詳細情報
+
+#### 例
 ```
-POST /scenarios/{scenario_id}/runs
+scenario run --scenario-id fun_navi_reserve --vars '{"facilityID":"001"}'
+scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 ```
 
-## Inputs
+---
 
-### CLI Arguments
-- `--scenario-id`: Scenario ID resolved under the scenarios directory.
-- `--scenario-file`: Absolute or relative path to a scenario file.
-- `--vars`: JSON string for runtime variables.
-- `--secrets`: JSON string for secret variables.
-- `--format`: Optional override for file format when using `--scenario-id`.
+### HTTP: `POST /scenarios/{scenario_id}/runs`
+#### 目的
+- シナリオをHTTP経由で実行し、結果をJSONで返す。
 
-### HTTP Body
+#### パスパラメータ
+| 名前 | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `scenario_id` | string | 必須 | シナリオID。`scenarios/` から検索される。 |
+
+#### リクエストボディ
 ```json
 {
   "vars": {},
@@ -35,14 +61,12 @@ POST /scenarios/{scenario_id}/runs
 }
 ```
 
-## Output
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `vars` | object | 任意 | 変数入力。 |
+| `secrets` | object | 任意 | シークレット入力。 |
 
-### CLI
-- Exit code `0` on success, `1` on failure.
-- Standard output includes execution summary and scenario metadata.
-- Standard error includes error details when execution fails.
-
-### HTTP Response
+#### レスポンス
 ```json
 {
   "success": true,
@@ -51,25 +75,42 @@ POST /scenarios/{scenario_id}/runs
 }
 ```
 
-## Format Resolution
-- When using `--scenario-id` or HTTP endpoints, the loader is selected by file extension.
-- Supported extensions: `.yaml`, `.yml`, `.json`.
-- Unsupported extensions must return a format error before execution.
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `success` | boolean | 必須 | 実行成功フラグ。 |
+| `result` | object/null | 必須 | 実行結果。 |
+| `error` | string/null | 必須 | 失敗時のエラーメッセージ。 |
 
-## Execution Flow
-1. Resolve the scenario file path (ID or explicit path).
-2. Select loader by file extension.
-3. Parse scenario into domain objects.
-4. Build execution dependencies.
-5. Execute steps in order with logging and error handling.
-6. Return aggregated results.
+#### ステータスコード
+| コード | 条件 |
+|---|---|
+| `200` | 正常応答（`success` に結果が反映される） |
+| `404` | シナリオファイルが存在しない |
+| `400` | サポート外の形式 |
 
-## Error Handling
-- File not found: return 404 (HTTP) or exit 1 (CLI).
-- Unsupported format: return 400 (HTTP) or exit 1 (CLI).
-- Execution failure: return `success=false` with error details.
+---
 
-## Logging Requirements
-- Each log entry must include a `type` field matching the event name.
-- Step start/end must emit `step.start` and `step.end` events.
-- Include `run_id` and `step_id` for correlation.
+## フォーマット解決ルール
+- `--scenario-id` またはHTTP経由の場合は、拡張子でローダーを選択する。
+- 拡張子の対応:
+  - `.yaml` / `.yml` → YAMLローダー
+  - `.json` → JSONローダー
+- 未対応拡張子は、実行前にフォーマットエラーとする。
+
+## 実行フロー（共通）
+1. シナリオファイルを解決（IDまたはファイルパス）。
+2. 拡張子に応じてローダー選択。
+3. シナリオをドメインオブジェクトへ変換。
+4. 実行依存（logger、secret、url resolver）を構築。
+5. ステップを順次実行。
+6. 結果を集約して返却。
+
+## エラーハンドリング
+- ファイル未検出: CLIは終了コード`1`、HTTPは`404`。
+- 形式未対応: CLIは終了コード`1`、HTTPは`400`。
+- 実行失敗: `success=false` と `error` に理由を格納。
+
+## ログ仕様
+- すべてのログイベントに `type` フィールドを含める。
+- ステップ実行時は `step.start` / `step.end` を必ず出力する。
+- 相関用に `run_id` と `step_id` を含める。
