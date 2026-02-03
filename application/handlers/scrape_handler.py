@@ -24,6 +24,8 @@ class ScrapeStepHandler(StepHandler):
           Extract elements by CSS selector and save:
             - text (default) OR attribute value (attr)
             - first only OR all (multiple=True)
+      - label_next_td:
+          Find a label text in table header/cell and extract the next <td> text
 
     Stores results into ctx.vars under step.save_as key.
     """
@@ -46,6 +48,9 @@ class ScrapeStepHandler(StepHandler):
 
             if cmd == "css":
                 return self._handle_css(step, soup, ctx, deps)
+
+            if cmd == "label_next_td":
+                return self._handle_label_next_td(step, soup, ctx, deps)
 
             return StepOutcome(ok=False, error_message=f"unsupported scrape command: {step.command}")
 
@@ -88,6 +93,44 @@ class ScrapeStepHandler(StepHandler):
             save_as=save_as,
             count=len(hidden),
             keys_preview=keys[:10],
+        )
+
+        return StepOutcome(ok=True)
+
+    def _handle_label_next_td(
+        self, step: ScrapeStep, soup: BeautifulSoup, ctx: RunContext, deps: ExecutionDeps
+    ) -> StepOutcome:
+        label = getattr(step, "label", None)
+        if not label:
+            return StepOutcome(ok=False, error_message="scrape.label_next_td requires label")
+
+        save_as = step.save_as
+        if not save_as:
+            return StepOutcome(ok=False, error_message="scrape.label_next_td requires save_as")
+
+        label_text = str(label).strip()
+        label_node = soup.find(string=lambda text: text and text.strip() == label_text)
+        if not label_node:
+            return StepOutcome(ok=False, error_message=f"label not found: {label_text}")
+
+        label_parent = label_node.parent
+        candidate_td = None
+        if label_parent and label_parent.name in ("th", "td", "label"):
+            candidate_td = label_parent.find_next_sibling("td")
+        if candidate_td is None:
+            candidate_td = label_parent.find_next("td") if label_parent else None
+
+        if candidate_td is None:
+            return StepOutcome(ok=False, error_message=f"no td found for label: {label_text}")
+
+        value = candidate_td.get_text(strip=True)
+        ctx.vars[save_as] = value
+        deps.logger.debug(
+            "scrape.label_next_td",
+            step_id=step.id,
+            label=label_text,
+            save_as=save_as,
+            value_preview=value[:200],
         )
 
         return StepOutcome(ok=True)
