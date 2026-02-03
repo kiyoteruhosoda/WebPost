@@ -105,6 +105,106 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 5. ステップを順次実行。
 6. 結果を集約して返却。
 
+## シナリオTypeリファレンス（全量）
+### 共通フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `id` | string | 必須 | ステップ識別子。 |
+| `type` | string | 必須 | ステップ種別。`http` / `scrape` / `assert` / `result` / `log`。 |
+| `enabled` | boolean | 任意 | 実行可否。省略時は`true`。 |
+| `retry` | object | 任意 | リトライ設定。 |
+| `on_error` | array | 任意 | エラー時の制御ルール。 |
+
+#### `retry` 詳細
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `max` | integer | 任意 | 最大リトライ回数。 |
+| `backoff_sec` | array(integer) | 任意 | バックオフ秒数の配列。 |
+
+#### `on_error` 詳細
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `expr` | string | 任意 | 条件式。未指定の場合はフォールバック扱い。 |
+| `action` | string | 任意 | `abort` / `retry` / `goto`。 |
+| `goto_step_id` | string | 任意 | `action=goto` 時の遷移先。 |
+
+---
+
+### Type: `http`
+#### 目的
+- HTTPリクエストを実行し、レスポンスを`last`に保存する。
+
+#### 追加フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `request` | object | 必須 | HTTPリクエスト仕様。 |
+| `save_as_last` | boolean | 任意 | レスポンスを`last`へ保存するか。 |
+
+#### `request` 詳細
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `method` | string | 任意 | HTTPメソッド。省略時は`GET`。 |
+| `url` | string | 必須 | リクエストURL。 |
+| `headers` | object | 任意 | HTTPヘッダ。 |
+| `form_list` | array([string,string]) | 任意 | フォーム配列。 |
+| `merge_from_vars` | string | 任意 | `vars`の辞書をフォームにマージ。 |
+
+---
+
+### Type: `scrape`
+#### 目的
+- HTMLから情報を抽出し、`vars`または`state`へ保存する。
+
+#### 追加フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `command` | string | 必須 | スクレイプコマンド。 |
+| `save_as` | string | 任意 | 保存先キー。 |
+| `selector` | string | 任意 | CSSセレクタ。 |
+| `attr` | string | 任意 | 抽出属性。 |
+| `multiple` | boolean | 任意 | 複数取得の有無。 |
+| `label` | string | 任意 | 追加ラベル。 |
+
+---
+
+### Type: `assert`
+#### 目的
+- 条件式の評価でシナリオの成否を判定する。
+
+#### 追加フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `conditions` | array(object) | 必須 | 判定条件の配列。 |
+
+#### `conditions` 詳細
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `expr` | string | 必須 | 評価式。 |
+
+---
+
+### Type: `result`
+#### 目的
+- 実行結果を`result`に格納する。
+
+#### 追加フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `fields` | object | 任意 | 出力するキーと値。 |
+
+---
+
+### Type: `log`
+#### 目的
+- 実行途中でログを出力し、変数や状態を可視化する。
+
+#### 追加フィールド
+| フィールド | 型 | 必須 | 説明 |
+|---|---|---|---|
+| `message` | string | 必須 | ログ本文。テンプレート展開に対応。 |
+| `level` | string | 任意 | `info` / `debug` / `error`。省略時は`info`。 |
+| `fields` | object | 任意 | 付加フィールド。テンプレート展開に対応。 |
+
 ## エラーハンドリング
 - ファイル未検出: CLIは終了コード`1`、HTTPは`404`。
 - 形式未対応: CLIは終了コード`1`、HTTPは`400`。
@@ -114,3 +214,18 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 - すべてのログイベントに `type` フィールドを含める。
 - ステップ実行時は `step.start` / `step.end` を必ず出力する。
 - 相関用に `run_id` と `step_id` を含める。
+
+### `type` ログ詳細
+#### 目的
+- ログイベントの種別を機械的に識別するための必須フィールド。
+
+#### 仕様
+- 値はイベント名と一致する。
+- すべてのログ行に含まれる。
+- 既存フィールドと衝突する場合は、イベント名を優先して上書きする。
+
+#### 例
+```
+step.start {"type":"step.start","run_id":"...","step_id":"login"}
+step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_ms":120}
+```

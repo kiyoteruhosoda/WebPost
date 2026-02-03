@@ -17,6 +17,7 @@ from domain.steps.http import HttpStep, HttpRequestSpec
 from domain.steps.scrape import ScrapeStep
 from domain.steps.assertion import AssertStep, ConditionSpec
 from domain.steps.result import ResultStep
+from domain.steps.log import LogStep
 
 
 class ScenarioLoadError(Exception):
@@ -114,6 +115,8 @@ class ScenarioLoaderBase(ABC):
             return self._load_assert_step(data, common_kwargs)
         if step_type == "result":
             return self._load_result_step(data, common_kwargs)
+        if step_type == "log":
+            return self._load_log_step(data, common_kwargs)
 
         return None
 
@@ -181,6 +184,14 @@ class ScenarioLoaderBase(ABC):
 
     def _load_result_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> ResultStep:
         return ResultStep(
+            fields=data.get("fields", {}),
+            **common,
+        )
+
+    def _load_log_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> LogStep:
+        return LogStep(
+            message=data.get("message", ""),
+            level=data.get("level", "info"),
             fields=data.get("fields", {}),
             **common,
         )

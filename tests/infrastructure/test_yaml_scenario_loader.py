@@ -6,6 +6,7 @@ from infrastructure.scenario.file_finder import ScenarioFileFinder
 from infrastructure.scenario.yaml_loader import YamlScenarioLoader
 from domain.steps.http import HttpStep
 from domain.steps.result import ResultStep
+from domain.steps.log import LogStep
 
 
 def test_find_yaml_scenario_file(tmp_path: Path) -> None:
@@ -65,6 +66,9 @@ steps:
     type: result
     fields:
       status: ok
+  - id: log_step
+    type: log
+    message: "log ${vars.foo}"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -76,7 +80,8 @@ steps:
     assert scenario.meta.version == 2
     assert scenario.defaults.http is not None
     assert scenario.defaults.http.base_url == "https://example.com"
-    assert len(scenario.steps) == 2
+    assert len(scenario.steps) == 3
     assert isinstance(scenario.steps[0], HttpStep)
     assert scenario.steps[0].request.form_list == [("foo", "bar")]
     assert isinstance(scenario.steps[1], ResultStep)
+    assert isinstance(scenario.steps[2], LogStep)

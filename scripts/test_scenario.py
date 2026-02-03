@@ -28,6 +28,7 @@ from application.handlers.http_handler import HttpStepHandler
 from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
+from application.handlers.log_handler import LogStepHandler
 from application.services.template_renderer import TemplateRenderer
 from application.services.execution_deps import ExecutionDeps
 from application.ports.requests_client import RequestsSessionHttpClient
@@ -86,6 +87,7 @@ def main():
     scrape_handler = ScrapeStepHandler()
     assert_handler = AssertStepHandler()
     result_handler = ResultStepHandler(renderer)
+    log_handler = LogStepHandler(renderer)
     
     # Registry
     registry = HandlerRegistry([
@@ -93,6 +95,7 @@ def main():
         scrape_handler,
         assert_handler,
         result_handler,
+        log_handler,
     ])
     
     # Executor

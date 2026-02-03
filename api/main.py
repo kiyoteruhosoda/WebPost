@@ -27,6 +27,7 @@ from application.handlers.http_handler import HttpStepHandler
 from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
+from application.handlers.log_handler import LogStepHandler
 from domain.run import RunContext
 
 
@@ -124,7 +125,8 @@ def run_scenario(
             HttpStepHandler(http_client, renderer),
             ScrapeStepHandler(),
             AssertStepHandler(),
-            ResultStepHandler(renderer)
+            ResultStepHandler(renderer),
+            LogStepHandler(renderer),
         ]
         registry = HandlerRegistry(handlers)
         
