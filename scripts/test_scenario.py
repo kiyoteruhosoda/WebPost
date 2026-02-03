@@ -3,7 +3,7 @@
 Scenario load & execution test script
 
 Usage:
-  python scripts/test_scenario.py scenarios/fun_navi_reserve.json [--mock]
+  python scripts/test_scenario.py scenarios/fun_navi_reserve.yaml [--mock]
   
 Options:
   --mock    Use mock HTTP client instead of real requests
@@ -18,7 +18,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from infrastructure.scenario.json_loader import JsonScenarioLoader
+from infrastructure.scenario.yaml_loader import YamlScenarioLoader
 from infrastructure.secrets.env_secret_provider import EnvSecretProvider
 from infrastructure.logging.console_logger import ConsoleLogger
 from infrastructure.url.base_url_resolver import BaseUrlResolver
@@ -45,7 +45,7 @@ except ImportError:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python scripts/test_scenario.py <scenario.json> [--mock]")
+        print("Usage: python scripts/test_scenario.py <scenario.yaml> [--mock]")
         sys.exit(1)
 
     scenario_path = sys.argv[1]
@@ -54,7 +54,7 @@ def main():
     print(f"=== Loading scenario: {scenario_path} ===")
     
     # 1) Load scenario
-    loader = JsonScenarioLoader()
+    loader = YamlScenarioLoader()
     try:
         scenario = loader.load_from_file(scenario_path)
     except Exception as e:

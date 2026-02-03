@@ -1,12 +1,13 @@
-# infrastructure/scenario/json_loader.py
+# infrastructure/scenario/yaml_loader.py
 """
-JSONシナリオファイルからScenarioドメインオブジェクトを生成
+YAMLシナリオファイルからScenarioドメインオブジェクトを生成
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+import yaml
 
 from domain.scenario import (
     Scenario,
@@ -26,17 +27,23 @@ class ScenarioLoadError(Exception):
     pass
 
 
-class JsonScenarioLoader:
-    """JSONファイルからScenarioをロード"""
+class YamlScenarioLoader:
+    """YAMLファイルからScenarioをロード"""
 
     def load_from_file(self, path: str) -> Scenario:
-        """JSONファイルからScenarioをロード"""
+        """YAMLファイルからScenarioをロード"""
         p = Path(path)
         if not p.exists():
             raise ScenarioLoadError(f"Scenario file not found: {path}")
 
         with p.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+            data = yaml.safe_load(f)
+
+        if data is None:
+            raise ScenarioLoadError(f"Scenario file is empty: {path}")
+
+        if not isinstance(data, dict):
+            raise ScenarioLoadError(f"Scenario file is invalid: {path}")
 
         return self.load_from_dict(data)
 
@@ -94,7 +101,7 @@ class JsonScenarioLoader:
         """ステップをtype別にロード"""
         step_type = data.get("type", "").lower()
         step_id = data.get("id", "unknown")
-        
+
         # 共通フィールド
         enabled = data.get("enabled", True)
         retry = self._load_retry(data.get("retry", {}))
@@ -110,15 +117,15 @@ class JsonScenarioLoader:
 
         if step_type == "http":
             return self._load_http_step(data, common_kwargs)
-        elif step_type == "scrape":
+        if step_type == "scrape":
             return self._load_scrape_step(data, common_kwargs)
-        elif step_type == "assert":
+        if step_type == "assert":
             return self._load_assert_step(data, common_kwargs)
-        elif step_type == "result":
+        if step_type == "result":
             return self._load_result_step(data, common_kwargs)
-        else:
-            # 未知のステップタイプはスキップ（またはエラー）
-            return None
+
+        # 未知のステップタイプはスキップ（またはエラー）
+        return None
 
     def _load_retry(self, data: Dict[str, Any]) -> RetryPolicy:
         if not data:
@@ -141,7 +148,7 @@ class JsonScenarioLoader:
 
     def _load_http_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> HttpStep:
         req_data = data.get("request", {})
-        
+
         # form_listをロード
         form_list = []
         for item in req_data.get("form_list", []):
