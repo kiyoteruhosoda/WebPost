@@ -20,47 +20,17 @@ class TemplateRenderer:
     """
     ${vars.xxx}, ${state.xxx}, ${secrets.xxx}, ${last.xxx} を展開する。
     - ドット参照対応: ${vars.login_hidden.token}
-    - [*] 展開対応: list をそのまま返す（FormComposer が展開処理を行う）
-      例: ${vars.dates[*]} => ["2026/02/02", "2026/04/13"]
+    - [*] 展開対応: いまは form_list の値として使うことを想定（joinする）
+      例: ${vars.items[*].id} => "1,2,3" （デフォルト）
     """
 
-    def render_form_list(self, form_list: List[Tuple[str, str]], src: RenderSources) -> List[Tuple[str, Any]]:
-        """
-        form_list の各値をレンダリング。
-        値が list の場合はそのまま list で返す（FormComposer が展開処理を行う）
-        """
-        out: List[Tuple[str, Any]] = []
+    def render_form_list(self, form_list: List[Tuple[str, str]], src: RenderSources) -> List[Tuple[str, str]]:
+        out: List[Tuple[str, str]] = []
         for k, v in form_list:
-            rendered_key = self._render_str_scalar(k, src)
-            rendered_value = self._render_value(v, src)
-            out.append((rendered_key, rendered_value))
+            out.append((self._render_str(k, src), self._render_str(v, src)))
         return out
 
-    def _render_value(self, s: str, src: RenderSources) -> Any:
-        """
-        値をレンダリング。listの場合はlistのまま返す。
-        """
-        if s is None:
-            return ""
-        if "${" not in s:
-            return s
-
-        # テンプレートが1つだけで、かつ全体がテンプレートの場合
-        if s.startswith("${") and s.endswith("}") and s.count("${") == 1:
-            expr = s[2:-1].strip()
-            value = self._eval(expr, src)
-            # list の場合はそのまま返す（FormComposer が展開）
-            if isinstance(value, list):
-                return value
-            return "" if value is None else str(value)
-
-        # 複数埋め込みまたは部分埋め込みの場合は文字列化
-        return self._render_str_scalar(s, src)
-
-    def _render_str_scalar(self, s: str, src: RenderSources) -> str:
-        """
-        文字列として展開（list は join される）
-        """
+    def _render_str(self, s: str, src: RenderSources) -> str:
         if s is None:
             return ""
         if "${" not in s:
@@ -82,7 +52,7 @@ class TemplateRenderer:
             value = self._eval(expr, src)
 
             if isinstance(value, list):
-                # 文字列コンテキストでは join
+                # form value としては join して文字列化
                 value = ",".join("" if x is None else str(x) for x in value)
 
             result += "" if value is None else str(value)

@@ -14,4 +14,4 @@ class ScrapeStep(Step):
     selector: Optional[str] = None
     attr: Optional[str] = None
     multiple: bool = False
-    label: Optional[str] = None  # label_next_td用
+    label: Optional[str] = None

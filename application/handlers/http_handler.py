@@ -129,17 +129,6 @@ class HttpStepHandler(StepHandler):
 
             deduped_form = _dedupe_pairs_last_wins(composed.form_list)
 
-            # ヘッダーを準備：User-Agent と Referer を自動設定
-            headers = dict(step.request.headers or {})
-            
-            # User-Agentが設定されていなければ、scenarioのmetaから取得
-            if "User-Agent" not in headers and hasattr(ctx, 'scenario') and hasattr(ctx.scenario, 'meta'):
-                headers["User-Agent"] = ctx.scenario.meta.user_agent
-            
-            # Refererを自動設定（前のリクエストのURLがあれば）
-            if "Referer" not in headers and ctx.last and ctx.last.url:
-                headers["Referer"] = ctx.last.url
-
             # DEBUG: form / headers はマスクしてログ
             deps.logger.debug(
                 "http.form_composed",
@@ -151,7 +140,7 @@ class HttpStepHandler(StepHandler):
                 duplicate_keys=_dup_keys(composed.form_list),
                 collision_keys=_detect_collisions(base_form, ctx.vars.get(merge_from, {}) if merge_from else {}),
                 form=mask_pairs(composed.form_list),
-                headers=mask_dict(headers),
+                headers=mask_dict(step.request.headers or {}),
             )
 
             deps.logger.info("http.client_impl", cls=type(self._http).__name__, module=type(self._http).__module__)
@@ -167,7 +156,7 @@ class HttpStepHandler(StepHandler):
             resp = self._http.request(
                 method=step.request.method,
                 url=url,
-                headers=headers,
+                headers=step.request.headers,
                 form_list=deduped_form,
                 allow_redirects=allow_redirects,
             )
