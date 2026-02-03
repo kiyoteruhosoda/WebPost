@@ -2,10 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from domain.scenario import Scenario
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -19,9 +16,7 @@ class LastResponse:
 @dataclass
 class RunContext:
     run_id: str = ""  # ★追加
-    scenario: Optional["Scenario"] = None  # ★シナリオ参照（User-Agent取得用）
 
     vars: Dict[str, Any] = field(default_factory=dict)
     state: Dict[str, Any] = field(default_factory=dict)
     last: Optional[LastResponse] = None
-    result: Dict[str, Any] = field(default_factory=dict)  # ★ResultStepで保存される最終結果

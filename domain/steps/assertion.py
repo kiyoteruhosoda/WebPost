@@ -7,6 +7,6 @@ from domain.steps.base import Step
 class ConditionSpec:
     expr: str
 
-@dataclass(frozen=True)
+@dataclass
 class AssertStep(Step):
     conditions: List[ConditionSpec] = None

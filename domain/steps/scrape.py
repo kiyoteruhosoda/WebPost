@@ -9,9 +9,8 @@ from domain.steps.base import Step
 
 @dataclass(frozen=True)
 class ScrapeStep(Step):
-    command: str               # "hidden_inputs" | "css" | "label_next_td"
+    command: str               # "hidden_inputs" or "css"
     save_as: str
     selector: Optional[str] = None
     attr: Optional[str] = None
     multiple: bool = False
-    label: Optional[str] = None  # label_next_td用
