@@ -153,6 +153,24 @@ class TestTemplateRenderer:
         result = renderer.render_form_list([], src)
         assert result == []
 
+    def test_render_value_expands_template(self):
+        renderer = TemplateRenderer()
+        src = RenderSources(
+            vars={"name": "Alice"},
+            state={},
+            secrets={},
+            last={}
+        )
+        result = renderer.render_value("Hello ${vars.name}", src)
+        assert result == "Hello Alice"
+
+    def test_render_value_passes_non_string(self):
+        renderer = TemplateRenderer()
+        src = RenderSources(vars={}, state={}, secrets={}, last={})
+        value = {"key": "value"}
+        result = renderer.render_value(value, src)
+        assert result == value
+
     def test_split_root(self):
         renderer = TemplateRenderer()
         assert renderer._split_root("vars.name") == ("vars", "name")

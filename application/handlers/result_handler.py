@@ -33,7 +33,7 @@ class ResultStepHandler(StepHandler):
 
             result: Dict[str, Any] = {}
             for key, template in step.fields.items():
-                rendered = self._renderer._render_value(template, src)
+                rendered = self._renderer.render_value(template, src)
                 result[key] = rendered
 
             # ctx に result を保存（Run完了時に使用）
