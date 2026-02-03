@@ -24,6 +24,9 @@ class ScrapeStepHandler(StepHandler):
           Extract elements by CSS selector and save:
             - text (default) OR attribute value (attr)
             - first only OR all (multiple=True)
+      - label_next_td:
+          Find <th> containing label text, get next sibling <tr>, extract <td> text
+          HTML structure耐性が高い抽出方法
 
     Stores results into ctx.vars under step.save_as key.
     """
@@ -46,6 +49,9 @@ class ScrapeStepHandler(StepHandler):
 
             if cmd == "css":
                 return self._handle_css(step, soup, ctx, deps)
+
+            if cmd == "label_next_td":
+                return self._handle_label_next_td(step, soup, ctx, deps)
 
             return StepOutcome(ok=False, error_message=f"unsupported scrape command: {step.command}")
 
@@ -146,5 +152,73 @@ class ScrapeStepHandler(StepHandler):
                 multiple=False,
                 value=value[:200],
             )
+
+        return StepOutcome(ok=True)
+
+    def _handle_label_next_td(self, step: ScrapeStep, soup: BeautifulSoup, ctx: RunContext, deps: ExecutionDeps) -> StepOutcome:
+        """
+        label_next_td: HTML構造に強い予約番号などの抽出
+        
+        手順:
+        1. <th>でlabelテキストを含む要素を探す
+        2. その<th>の親<tr>を取得
+        3. 次の兄弟<tr>を取得
+        4. その<tr>内の<td>テキストを抽出
+        
+        例:
+        <tr><th>予約番号</th></tr>
+        <tr><td>00003217694</td></tr>
+        """
+        label = step.label
+        if not label:
+            return StepOutcome(ok=False, error_message="scrape.label_next_td requires label")
+
+        save_as = step.save_as
+        if not save_as:
+            return StepOutcome(ok=False, error_message="scrape.label_next_td requires save_as")
+
+        # 1) labelを含む<th>を探す
+        th_found = None
+        for th in soup.find_all("th"):
+            text = th.get_text(strip=True)
+            if label in text:
+                th_found = th
+                break
+
+        if not th_found:
+            deps.logger.warning(
+                "scrape.label_next_td.th_not_found",
+                step_id=step.id,
+                label=label,
+            )
+            return StepOutcome(ok=False, error_message=f"<th> containing '{label}' not found")
+
+        # 2) <th>の親<tr>を取得
+        tr_label = th_found.find_parent("tr")
+        if not tr_label:
+            return StepOutcome(ok=False, error_message="<th> has no parent <tr>")
+
+        # 3) 次の兄弟<tr>を取得
+        tr_next = tr_label.find_next_sibling("tr")
+        if not tr_next:
+            return StepOutcome(ok=False, error_message="No next sibling <tr> found")
+
+        # 4) <td>テキストを抽出
+        td = tr_next.find("td")
+        if not td:
+            return StepOutcome(ok=False, error_message="No <td> found in next <tr>")
+
+        value = td.get_text(strip=True)
+
+        # 保存
+        ctx.vars[save_as] = value
+
+        deps.logger.debug(
+            "scrape.label_next_td",
+            step_id=step.id,
+            label=label,
+            save_as=save_as,
+            value=value[:100],
+        )
 
         return StepOutcome(ok=True)
