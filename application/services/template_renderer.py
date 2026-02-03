@@ -30,6 +30,16 @@ class TemplateRenderer:
             out.append((self._render_str(k, src), self._render_str(v, src)))
         return out
 
+    def render_value(self, value: Any, src: RenderSources) -> Any:
+        """
+        Public wrapper for rendering a single value.
+        Reason: Result steps need a supported method for template expansion.
+        Impact: Only template strings are expanded; non-string values pass through.
+        """
+        if isinstance(value, str) or value is None:
+            return self._render_str(value, src)
+        return value
+
     def _render_str(self, s: str, src: RenderSources) -> str:
         if s is None:
             return ""

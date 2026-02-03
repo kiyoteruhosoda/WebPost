@@ -18,4 +18,7 @@ class EnvSecretProvider:
             raise RuntimeError(
                 f"Missing secrets. Set {self.fulltime_id_env} and {self.password_env}"
             )
-        return {"fulltimeID": fulltime_id, "password": password}
+        return {
+            self.fulltime_id_env: fulltime_id,
+            self.password_env: password,
+        }
