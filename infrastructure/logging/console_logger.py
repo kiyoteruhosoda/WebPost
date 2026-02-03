@@ -29,4 +29,5 @@ class ConsoleLogger(LoggerPort):
     def _emit(self, event: str, fields: Dict[str, Any]) -> None:
         payload = dict(self.bound)
         payload.update(fields)
+        payload.setdefault("type", event)
         print(f"{event} {json.dumps(payload, ensure_ascii=False)}")
