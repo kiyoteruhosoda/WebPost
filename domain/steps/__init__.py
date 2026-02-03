@@ -3,6 +3,7 @@ from domain.steps.http import HttpStep, HttpRequestSpec
 from domain.steps.scrape import ScrapeStep
 from domain.steps.assertion import AssertStep, ConditionSpec
 from domain.steps.result import ResultStep
+from domain.steps.log import LogStep
 
 __all__ = [
     "Step",
@@ -14,4 +15,5 @@ __all__ = [
     "AssertStep",
     "ConditionSpec",
     "ResultStep",
+    "LogStep",
 ]

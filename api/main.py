@@ -13,7 +13,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from infrastructure.scenario.file_finder import ScenarioFileFinder
-from infrastructure.scenario.yaml_loader import YamlScenarioLoader
+from infrastructure.scenario.loader_registry import ScenarioLoaderRegistry
 from infrastructure.secrets.env_secret_provider import EnvSecretProvider
 from infrastructure.logging.console_logger import ConsoleLogger
 from infrastructure.http.http_artifact_saver import HttpArtifactSaver
@@ -27,6 +27,7 @@ from application.handlers.http_handler import HttpStepHandler
 from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
+from application.handlers.log_handler import LogStepHandler
 from domain.run import RunContext
 
 
@@ -88,11 +89,12 @@ def run_scenario(
         if scenario_file is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Scenario file not found: {scenario_id}.yaml"
+                detail=f"Scenario file not found: {scenario_id}"
             )
         
         # 2. シナリオをロード
-        loader = YamlScenarioLoader()
+        registry = ScenarioLoaderRegistry()
+        loader = registry.get_loader(scenario_file)
         scenario = loader.load_from_file(scenario_file)
         
         # 3. 実行環境を構築
@@ -123,7 +125,8 @@ def run_scenario(
             HttpStepHandler(http_client, renderer),
             ScrapeStepHandler(),
             AssertStepHandler(),
-            ResultStepHandler(renderer)
+            ResultStepHandler(renderer),
+            LogStepHandler(renderer),
         ]
         registry = HandlerRegistry(handlers)
         

@@ -6,6 +6,7 @@ from infrastructure.scenario.file_finder import ScenarioFileFinder
 from infrastructure.scenario.yaml_loader import YamlScenarioLoader
 from domain.steps.http import HttpStep
 from domain.steps.result import ResultStep
+from domain.steps.log import LogStep
 
 
 def test_find_yaml_scenario_file(tmp_path: Path) -> None:
@@ -25,6 +26,17 @@ def test_find_yml_scenario_file(tmp_path: Path) -> None:
     nested_dir.mkdir(parents=True)
     scenario_path = nested_dir / "sample.yml"
     scenario_path.write_text("meta: {id: 1, name: sample, version: 1}\nsteps: []\n", encoding="utf-8")
+
+    finder = ScenarioFileFinder(base_dir)
+
+    assert finder.find_by_id("sample") == scenario_path
+
+
+def test_find_json_scenario_file(tmp_path: Path) -> None:
+    base_dir = tmp_path / "scenarios"
+    base_dir.mkdir()
+    scenario_path = base_dir / "sample.json"
+    scenario_path.write_text('{"meta": {"id": 1, "name": "sample", "version": 1}, "steps": []}', encoding="utf-8")
 
     finder = ScenarioFileFinder(base_dir)
 
@@ -54,6 +66,9 @@ steps:
     type: result
     fields:
       status: ok
+  - id: log_step
+    type: log
+    message: "log ${vars.foo}"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -65,7 +80,8 @@ steps:
     assert scenario.meta.version == 2
     assert scenario.defaults.http is not None
     assert scenario.defaults.http.base_url == "https://example.com"
-    assert len(scenario.steps) == 2
+    assert len(scenario.steps) == 3
     assert isinstance(scenario.steps[0], HttpStep)
     assert scenario.steps[0].request.form_list == [("foo", "bar")]
     assert isinstance(scenario.steps[1], ResultStep)
+    assert isinstance(scenario.steps[2], LogStep)
