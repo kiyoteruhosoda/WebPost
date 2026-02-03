@@ -1,16 +1,14 @@
-# infrastructure/scenario/yaml_loader.py
+# infrastructure/scenario/json_loader.py
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 from infrastructure.scenario.base_loader import ScenarioLoaderBase
 
 
-class YamlScenarioLoader(ScenarioLoaderBase):
+class JsonScenarioLoader(ScenarioLoaderBase):
     def _load_file(self, path: Path) -> Any:
         with path.open("r", encoding="utf-8") as handle:
-            data = yaml.safe_load(handle)
-        return data
+            return json.load(handle)

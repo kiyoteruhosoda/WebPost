@@ -18,7 +18,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from infrastructure.scenario.yaml_loader import YamlScenarioLoader
+from infrastructure.scenario.loader_registry import ScenarioLoaderRegistry
 from infrastructure.secrets.env_secret_provider import EnvSecretProvider
 from infrastructure.logging.console_logger import ConsoleLogger
 from infrastructure.url.base_url_resolver import BaseUrlResolver
@@ -45,7 +45,7 @@ except ImportError:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python scripts/test_scenario.py <scenario.yaml> [--mock]")
+        print("Usage: python scripts/test_scenario.py <scenario-file> [--mock]")
         sys.exit(1)
 
     scenario_path = sys.argv[1]
@@ -54,7 +54,8 @@ def main():
     print(f"=== Loading scenario: {scenario_path} ===")
     
     # 1) Load scenario
-    loader = YamlScenarioLoader()
+    registry = ScenarioLoaderRegistry()
+    loader = registry.get_loader(Path(scenario_path))
     try:
         scenario = loader.load_from_file(scenario_path)
     except Exception as e:

@@ -31,6 +31,17 @@ def test_find_yml_scenario_file(tmp_path: Path) -> None:
     assert finder.find_by_id("sample") == scenario_path
 
 
+def test_find_json_scenario_file(tmp_path: Path) -> None:
+    base_dir = tmp_path / "scenarios"
+    base_dir.mkdir()
+    scenario_path = base_dir / "sample.json"
+    scenario_path.write_text('{"meta": {"id": 1, "name": "sample", "version": 1}, "steps": []}', encoding="utf-8")
+
+    finder = ScenarioFileFinder(base_dir)
+
+    assert finder.find_by_id("sample") == scenario_path
+
+
 def test_yaml_loader_parses_steps(tmp_path: Path) -> None:
     scenario_path = tmp_path / "scenario.yaml"
     scenario_path.write_text(
