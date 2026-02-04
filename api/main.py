@@ -363,6 +363,8 @@ def run_scenario(
     logger = ConsoleLogger()
 
     try:
+        if not isinstance(wait_sec, int) and hasattr(wait_sec, "default"):
+            wait_sec = wait_sec.default
         if wait_sec is not None and wait_sec > MAX_WAIT_SEC:
             raise HTTPException(
                 status_code=400,

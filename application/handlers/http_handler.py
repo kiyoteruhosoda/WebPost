@@ -216,12 +216,13 @@ class HttpStepHandler(StepHandler):
                 text_head=body[:200],
             )
 
-            ctx.last = LastResponse(
-                status=resp.status,
-                url=resp.url,
-                text=body,
-                headers=resp.headers,
-            )
+            if step.save_as_last:
+                ctx.last = LastResponse(
+                    status=resp.status,
+                    url=resp.url,
+                    text=body,
+                    headers=resp.headers,
+                )
             return StepOutcome(ok=True)
 
         except Exception as e:
