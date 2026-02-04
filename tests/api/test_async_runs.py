@@ -78,3 +78,4 @@ def test_run_logs_endpoint_returns_entries(monkeypatch) -> None:
 
     # Assert
     assert any(entry.event == "custom.event" for entry in logs)
+    assert all("run_id" in entry.fields for entry in logs)

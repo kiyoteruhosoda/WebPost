@@ -311,7 +311,7 @@ def _execute_async_run(
     request: RunScenarioRequest,
     run_id: str,
 ) -> None:
-    logger = _build_logger(run_id)
+    logger = _build_logger(run_id).bind(run_id=run_id)
     logger.info("run.start", scenario_id=scenario_id)
 
     try:
