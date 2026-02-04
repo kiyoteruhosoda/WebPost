@@ -138,12 +138,6 @@ def run_scenario(
     ctx: Optional[RunContext] = None
     
     try:
-        # Reason: Prevent duplicate executions when the same key is supplied.
-        # Impact: Requests with a reused idempotency_key return HTTP 409.
-        if request.idempotency_key:
-            idempotency = IdempotencyService(IDEMPOTENCY_STORE)
-            idempotency.register_or_raise(IdempotencyKey(request.idempotency_key))
-
         # 1. シナリオファイルを探索
         finder = ScenarioFileFinder(SCENARIOS_DIR)
         scenario_file = finder.find_by_id(scenario_id)
@@ -163,6 +157,12 @@ def run_scenario(
         # Reason: Enforce required inputs at the API boundary.
         # Impact: Missing inputs return HTTP 400 instead of runtime failures.
         ScenarioInputValidatorService.default().validate(scenario, request.vars)
+
+        # Reason: Prevent duplicate executions when the same key is supplied.
+        # Impact: Requests with a reused idempotency_key return HTTP 409.
+        if request.idempotency_key:
+            idempotency = IdempotencyService(IDEMPOTENCY_STORE)
+            idempotency.register_or_raise(IdempotencyKey(request.idempotency_key))
 
         # 4. 実行環境を構築
         resolver = _build_secret_provider_resolver()
@@ -192,7 +192,6 @@ def run_scenario(
         executor = StepExecutor(registry)
         error_builder = ExecutionErrorBuilder()
         ctx = RunContext(
-            scenario=scenario,
             vars=request.vars,
             state={},
             last=None,
