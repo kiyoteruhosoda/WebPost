@@ -177,10 +177,18 @@ class ScenarioLoaderBase(ABC):
     def _load_assert_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> AssertStep:
         conditions = []
         for cond_data in data.get("conditions", []):
-            conditions.append(ConditionSpec(expr=cond_data.get("expr", "")))
+            conditions.append(
+                ConditionSpec(
+                    expr=cond_data.get("expr", ""),
+                    message=cond_data.get("message"),
+                )
+            )
 
         return AssertStep(
             conditions=conditions,
+            mode=data.get("mode", "all"),
+            fail_fast=data.get("fail_fast", True),
+            message=data.get("message"),
             **common,
         )
 
