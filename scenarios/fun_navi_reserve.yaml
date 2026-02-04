@@ -127,7 +127,7 @@ steps:
   - id: log
     type: log
     message: "Reservation completed. Reservation No: ${vars.reservationNo}"
-    level: INFO
+    level: info
   - id: assert_reservation_no
     type: assert
     enabled: true

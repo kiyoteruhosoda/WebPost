@@ -28,8 +28,8 @@
 
 ### 2.3 TODO（未実装想定の将来拡張）
 
-* TODO: **非同期Run（run_id）方式**を正式導入する（監査・長時間実行・ログ参照向き）
-* TODO: HTTPに `wait_sec`（上限付き待機）を導入し、非同期と同期の両立を提供する
+* DONE: **Asynchronous runs with run_id** are available for audit, long execution, and log access.
+* DONE: HTTP supports `wait_sec` (bounded waiting) for sync/async coexistence.
 
 ---
 
@@ -127,14 +127,14 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 
 ---
 
-## 3.3 TODO: HTTP 非同期Run（推奨拡張）
+## 3.3 DONE: HTTP Async Run (recommended extension)
 
 > **Step順序がズレない**ことを仕様として明文化する（Run内は逐次）。
 > 非同期は「呼び出し元が待つ/待たない」の違いで、Run内ステップは必ず順次実行。
 
-### TODO: 非同期起動
+### DONE: Async start
 
-* TODO: `POST /scenarios/{scenario_id}/runs` → `202 Accepted`
+* DONE: `POST /scenarios/{scenario_id}/runs?wait_sec=0` returns `202 Accepted`
 
 ```json
 {
@@ -147,14 +147,14 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 }
 ```
 
-### TODO: 状態参照
+### DONE: Status lookup
 
-* TODO: `GET /runs/{run_id}` → status/result/error/timestamps
-* TODO: `GET /runs/{run_id}/logs` → ログ一覧
+* DONE: `GET /runs/{run_id}` → status/result/error/timestamps
+* DONE: `GET /runs/{run_id}/logs` → log entries
 
-### TODO: wait（同期体験の両立）
+### DONE: wait (sync experience coexistence)
 
-* TODO: `POST /scenarios/{scenario_id}/runs?wait_sec=30`
+* DONE: `POST /scenarios/{scenario_id}/runs?wait_sec=30`
 
   * 30秒以内に完了 → `200 success/result/error`
   * 30秒を超過 → `202 run_id` を返す
@@ -183,11 +183,11 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 5. ステップを順次実行（`enabled=false`はスキップ）。
 6. 結果を集約して返却。
 
-### 5.2 TODO: 非同期Run（将来）
+### 5.2 DONE: Async Run
 
-* TODO: Runを作成し `queued → running → succeeded/failed` と遷移
-* TODO: ワーカーがRunを取り出し、**Run内ステップは必ず配列順に逐次実行**する
-* TODO: requests.Session / Context は Runスコープで隔離し、他Runと共有しない
+* DONE: Create a Run and transition `queued → running → succeeded/failed`.
+* DONE: Workers execute Run steps sequentially in array order.
+* DONE: requests.Session / Context are Run-scoped and not shared across runs.
 
 ---
 
@@ -271,7 +271,7 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 
 * すべてのログイベントに `type` フィールドを含める。
 * ステップ実行時は `step.start` / `step.end` を必ず出力する。
-* 相関用に `run_id`（同期は省略可だが推奨）と `step_id` を含める。
+* `run_id` is always included for correlation with `step_id`.
 
 例:
 
@@ -527,6 +527,11 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 | `level`   | string | 任意 | `info` / `debug` / `error`（省略時info） |
 | `fields`  | object | 任意 | 付加フィールド                             |
 
+Notes:
+
+* `level` must be lowercase (`info`, `debug`, `error`).
+* Log steps reject templates that reference secrets.
+
 **JSON例**
 
 ```json
@@ -553,13 +558,13 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 
 ---
 
-## 12. 付録：非同期導入時の“順序不変”宣言（TODOだが強く推奨）
+## 12. 付録：非同期導入時の“順序不変”宣言（DONE）
 
 > ここはあなたの懸念（Step順がズレて壊れる）を仕様で潰すための条項です。
 
-* TODO: **1つのRun内で、ステップは必ず配列順に逐次実行する**（並列実行しない）
-* TODO: `requests.Session` は Runスコープで生成し、Run終了で破棄する（Cookie混線防止）
-* TODO: `vars/state/last` は Runスコープで隔離し、他Runと共有しない
-* TODO: 同一Runを同時に2回実行しない（ロック/状態遷移で防止）
+* DONE: **Steps execute sequentially in array order within a Run** (no parallel execution).
+* DONE: `requests.Session` is created per Run and discarded on completion.
+* DONE: `vars/state/last` are Run-scoped and isolated across runs.
+* DONE: The same Run is not executed twice (status transition guard).
 
 ---

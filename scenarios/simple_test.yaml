@@ -27,7 +27,7 @@ steps:
   - id: log_result
     type: log
     message: "Test completed successfully!"
-    level: INFO
+    level: info
     fields:
       status: "${last.status}"
   - id: result
