@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup
 from application.handlers.base import StepHandler
 from application.outcome import StepOutcome
 from application.services.execution_deps import ExecutionDeps
-from application.services.redactor import mask_dict
+from application.services.scrape_source_registry import ScrapeSourceRegistry, ScrapeSourceError
+from application.services.scrape_target_registry import ScrapeTargetRegistry, ScrapeTargetError
 from domain.run import RunContext
 from domain.steps.scrape import ScrapeStep
 
@@ -30,15 +31,21 @@ class ScrapeStepHandler(StepHandler):
     Stores results into ctx.vars under step.save_as key.
     """
 
+    def __init__(
+        self,
+        source_registry: ScrapeSourceRegistry | None = None,
+        target_registry: ScrapeTargetRegistry | None = None,
+    ) -> None:
+        self._source_registry = source_registry or ScrapeSourceRegistry.default()
+        self._target_registry = target_registry or ScrapeTargetRegistry.default()
+
     def supports(self, step) -> bool:
         return isinstance(step, ScrapeStep)
 
     def handle(self, step: ScrapeStep, ctx: RunContext, deps: ExecutionDeps) -> StepOutcome:
         try:
-            if not ctx.last or not ctx.last.text:
-                return StepOutcome(ok=False, error_message="scrape requires ctx.last.text (no previous response)")
-
-            html = ctx.last.text
+            source = self._source_registry.get(step.source)
+            html = source.get_text(ctx)
             soup = BeautifulSoup(html, "lxml")
 
             cmd = (step.command or "").strip().lower()
@@ -54,6 +61,14 @@ class ScrapeStepHandler(StepHandler):
 
             return StepOutcome(ok=False, error_message=f"unsupported scrape command: {step.command}")
 
+        except (ScrapeSourceError, ScrapeTargetError) as e:
+            deps.logger.error(
+                "scrape.step_failed",
+                step_id=getattr(step, "id", "unknown"),
+                command=getattr(step, "command", None),
+                error=str(e),
+            )
+            return StepOutcome(ok=False, error_message=str(e))
         except Exception as e:
             deps.logger.error(
                 "scrape.step_failed",
@@ -82,8 +97,8 @@ class ScrapeStepHandler(StepHandler):
         if not save_as:
             return StepOutcome(ok=False, error_message="scrape.hidden_inputs requires save_as")
 
-        # Store
-        ctx.vars[save_as] = hidden
+        target = self._target_registry.get(step.save_to)
+        target.save(ctx, save_as, hidden)
 
         # Log summary (avoid huge output)
         keys = list(hidden.keys())
@@ -91,6 +106,7 @@ class ScrapeStepHandler(StepHandler):
             "scrape.hidden_inputs",
             step_id=step.id,
             save_as=save_as,
+            save_to=step.save_to,
             count=len(hidden),
             keys_preview=keys[:10],
         )
@@ -124,12 +140,14 @@ class ScrapeStepHandler(StepHandler):
             return StepOutcome(ok=False, error_message=f"no td found for label: {label_text}")
 
         value = candidate_td.get_text(strip=True)
-        ctx.vars[save_as] = value
+        target = self._target_registry.get(step.save_to)
+        target.save(ctx, save_as, value)
         deps.logger.debug(
             "scrape.label_next_td",
             step_id=step.id,
             label=label_text,
             save_as=save_as,
+            save_to=step.save_to,
             value_preview=value[:200],
         )
 
@@ -151,12 +169,14 @@ class ScrapeStepHandler(StepHandler):
 
         if not nodes:
             # empty is not necessarily error; depends on scenario
-            ctx.vars[save_as] = [] if multiple else ""
+            target = self._target_registry.get(step.save_to)
+            target.save(ctx, save_as, [] if multiple else "")
             deps.logger.warning(
                 "scrape.css.not_found",
                 step_id=step.id,
                 selector=selector,
                 save_as=save_as,
+                save_to=step.save_to,
             )
             return StepOutcome(ok=True)
 
@@ -168,24 +188,28 @@ class ScrapeStepHandler(StepHandler):
 
         if multiple:
             values: List[str] = [extract(n) for n in nodes]
-            ctx.vars[save_as] = values
+            target = self._target_registry.get(step.save_to)
+            target.save(ctx, save_as, values)
             deps.logger.debug(
                 "scrape.css",
                 step_id=step.id,
                 selector=selector,
                 save_as=save_as,
+                save_to=step.save_to,
                 multiple=True,
                 count=len(values),
                 values_preview=values[:5],
             )
         else:
             value = extract(nodes[0])
-            ctx.vars[save_as] = value
+            target = self._target_registry.get(step.save_to)
+            target.save(ctx, save_as, value)
             deps.logger.debug(
                 "scrape.css",
                 step_id=step.id,
                 selector=selector,
                 save_as=save_as,
+                save_to=step.save_to,
                 multiple=False,
                 value=value[:200],
             )

@@ -19,16 +19,19 @@ class ScenarioFileFinder:
         Returns:
             The Path if found, otherwise None.
         """
-        filenames = [
-            f"{scenario_id}.yaml",
-            f"{scenario_id}.yml",
-            f"{scenario_id}.json",
-        ]
-        
-        # Recursively search from the base directory.
-        for filename in filenames:
+        priority = [".json", ".yaml", ".yml"]
+        candidates: list[Path] = []
+
+        # Reason: Define deterministic priority when multiple extensions exist.
+        # Impact: .json is selected over YAML variants for the same scenario_id.
+        for ext in priority:
+            filename = f"{scenario_id}{ext}"
             for file_path in self.base_dir.rglob(filename):
                 if file_path.is_file():
-                    return file_path
-        
-        return None
+                    candidates.append(file_path)
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda path: (priority.index(path.suffix), str(path)))
+        return candidates[0]

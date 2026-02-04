@@ -165,6 +165,8 @@ class ScenarioLoaderBase(ABC):
         return ScrapeStep(
             command=data.get("command", ""),
             save_as=data.get("save_as", ""),
+            save_to=data.get("save_to", "vars"),
+            source=data.get("source", "last.text"),
             selector=data.get("selector"),
             attr=data.get("attr"),
             multiple=data.get("multiple", False),

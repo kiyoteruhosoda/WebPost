@@ -64,3 +64,28 @@ def test_log_step_handler_renders_and_logs() -> None:
     assert call["level"] == "info"
     assert call["message"] == "hello 123"
     assert call["value"] == "123"
+
+
+def test_log_step_handler_rejects_secret_template() -> None:
+    logger = MockLogger()
+    deps = ExecutionDeps(
+        secret_provider=MockSecretProvider(),
+        url_resolver=MockUrlResolver(),
+        logger=logger,
+    )
+    ctx = RunContext(vars={"foo": "123"}, state={})
+    renderer = TemplateRenderer()
+    handler = LogStepHandler(renderer)
+
+    step = LogStep(
+        id="log1",
+        name="log1",
+        message="token ${secrets.token}",
+        level="info",
+        fields={},
+    )
+
+    outcome = handler.handle(step, ctx, deps)
+
+    assert outcome.ok is False
+    assert any(call["event"] == "log.step_failed" for call in logger.calls)
