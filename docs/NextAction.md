@@ -24,14 +24,12 @@
 * 形式は `.yaml` / `.yml` / `.json` をサポートする。
 * シナリオはステップ列を持つが、本ドキュメントでは **Typeリファレンス側にのみ**ステップ仕様を記載する。
 * 実行は **同期**（HTTPは `success/result/error` を即時返却）を正とする。
+* idempotency key による二重実行防止
 
 ### 2.3 TODO（未実装想定の将来拡張）
 
 * TODO: **非同期Run（run_id）方式**を正式導入する（監査・長時間実行・ログ参照向き）
 * TODO: HTTPに `wait_sec`（上限付き待機）を導入し、非同期と同期の両立を提供する
-* DONE: `secret_ref`（SecretProvider参照）方式を導入し、HTTP body で secrets を渡さない運用に寄せる
-* DONE: idempotency key による二重実行防止
-* TODO: シナリオの保存先をRepository（DB等）に拡張（現状はファイル前提）
 
 ---
 
@@ -172,10 +170,6 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
   * `.json` → JSONローダー
 * 未対応拡張子は、実行前にフォーマットエラーとする。
 
-### DONE
-
-* DONE: Prefer `.json` when multiple scenario files share the same `scenario_id`.
-
 ---
 
 ## 5. 実行フロー（共通）
@@ -210,11 +204,7 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 
 * テンプレート展開は `${...}` を評価し置換する。
 * 値が配列/辞書の場合の扱いは、各フィールドの型仕様に従う。
-
-### DONE
-
-* DONE: Undefined references resolve to empty string.
-* DONE: `${vars.dates[*]}` expands to a list and renders as a comma-joined string when used in templates.
+* `${vars.dates[*]}` expands to a list and renders as a comma-joined string when used in templates.
 
 ---
 
@@ -275,14 +265,6 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 | `timeout_sec` | integer | 任意 | HTTPタイムアウト |
 | `headers`     | object  | 任意 | 既定ヘッダ      |
 
-### DONE
-
-* DONE: Validate required inputs before execution (HTTP 400 / CLI exit 1).
-
-### TODO
-
-* TODO: versionの競合制御（Repository運用時）
-
 ---
 
 ## 8. ログ仕様（実装済み）
@@ -298,13 +280,6 @@ step.start {"type":"step.start","run_id":"...","step_id":"login"}
 step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_ms":120}
 ```
 
-### DONE
-
-* DONE: Assign `run_id` for sync runs and bind it to log entries.
-
-### DONE
-
-* DONE: Standardize `http.request` / `http.response` log schema without body storage.
 
 ---
 
@@ -314,14 +289,6 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 
 * `secrets` はログに出さない（message/fieldsへの展開は禁止）
 * 抽出値（予約番号等）は必要に応じてマスク（末尾数桁のみ）
-
-### DONE
-
-* DONE: Fail fast when `${secrets.*}` appears in log message or fields.
-
-### TODO
-
-* DONE: HTTPで `secret_ref` を導入し、SecretProvider参照を選択可能にする（inline secretsは互換用）
 
 ---
 
@@ -576,10 +543,6 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 }
 ```
 
-### DONE
-
-* DONE: Reject `${secrets.*}` in `message` or `fields` to prevent leakage.
-
 ---
 
 ## 11. エラーハンドリング（実装済み）
@@ -587,10 +550,6 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 * ファイル未検出: CLIは終了コード`1`、HTTPは`404`。
 * 形式未対応: CLIは終了コード`1`、HTTPは`400`。
 * 実行失敗: `success=false` と `error` に理由を格納。
-
-### TODO
-
-* DONE: `error` の構造化（code/message/step_id/last.status 等）
 
 ---
 
