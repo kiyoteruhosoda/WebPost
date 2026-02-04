@@ -1,6 +1,7 @@
 # tests/domain/test_ids.py
 import pytest
-from domain.ids import ScenarioId, RunId, ScenarioVersion
+from domain.ids import ScenarioId, RunId, ScenarioVersion, IdempotencyKey
+from domain.exceptions import ValidationError
 
 
 class TestScenarioId:
@@ -73,3 +74,13 @@ class TestScenarioVersion:
         version2 = ScenarioVersion(value=1)
         version_set = {version1, version2}
         assert len(version_set) == 1
+
+
+class TestIdempotencyKey:
+    def test_create_idempotency_key(self):
+        key = IdempotencyKey(value="key-123")
+        assert key.value == "key-123"
+
+    def test_idempotency_key_empty_raises(self):
+        with pytest.raises(ValidationError):
+            IdempotencyKey(value=" ")
