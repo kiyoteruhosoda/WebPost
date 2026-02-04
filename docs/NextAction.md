@@ -346,30 +346,155 @@ python scripts/smoke_run.py wait --run-id <run_id> --api-base-url http://localho
 
 ### Purpose
 
-* Execute HTTP requests and update `last`.
+* Execute HTTP requests (GET, POST, etc.) to external websites or APIs.
+* Store response in `last` for use in subsequent steps.
+* Support form data composition with variable merging and template expansion.
 
 ### Additional Fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `request` | object | required | HTTP request specification. |
-| `save_as_last` | boolean | optional | Keep response in `last` (default true). |
+| `request` | object | required | HTTP request specification (method, URL, headers, form data). |
+| `save_as_last` | boolean | optional | Store response in `last` context (default: `true`). Set to `false` for intermediate requests. |
 
 #### request
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `method` | string | optional | Default `GET`. |
-| `url` | string | required | Relative or absolute URL. |
-| `headers` | object | optional | Headers merged with defaults. |
-| `form_list` | array([string, any]) | optional | Ordered form entries. |
-| `merge_from_vars` | string | optional | Merge `vars[merge_from_vars]` into form list. |
+| `method` | string | optional | HTTP method: `GET`, `POST`, `PUT`, `DELETE`, etc. (default: `GET`). |
+| `url` | string | required | Request URL. Relative URLs are resolved against `defaults.http.base_url`. |
+| `headers` | object | optional | Request headers. Merged with `defaults.http.headers` (explicit values override defaults). |
+| `form_list` | array([string, any]) | optional | Ordered list of form fields as `[name, value]` pairs. Supports template expansion. |
+| `merge_from_vars` | string | optional | Variable name containing a dictionary to merge into form data (e.g., hidden inputs from scraping). |
 
-#### form_list Rules
+### Use Cases
 
-* Items preserve order.
-* Merged `vars` pairs are added first; explicit `form_list` overrides on duplicate keys (last wins).
-* Duplicate keys are deduplicated to the last value before the request is sent.
+**1. Simple GET Request**
+
+Fetch a login page or API endpoint.
+
+```yaml
+- id: login_get
+  type: http
+  request:
+    method: GET
+    url: /login
+```
+
+**2. POST with Form Data**
+
+Submit a login form with credentials.
+
+```yaml
+- id: login_post
+  type: http
+  request:
+    method: POST
+    url: /login
+    form_list:
+      - [username, "${secrets.USERNAME}"]
+      - [password, "${secrets.PASSWORD}"]
+      - [remember, "true"]
+```
+
+**3. POST with Merged Hidden Inputs**
+
+Merge scraped hidden fields (CSRF tokens) with explicit form data.
+
+```yaml
+- id: login_post
+  type: http
+  request:
+    method: POST
+    url: /login
+    merge_from_vars: login_hidden  # Contains {"csrfToken": "abc123", "sessionId": "xyz"}
+    form_list:
+      - [username, "${secrets.USERNAME}"]
+      - [password, "${secrets.PASSWORD}"]
+```
+
+**Result**: Form data becomes `{"csrfToken": "abc123", "sessionId": "xyz", "username": "...", "password": "..."}` (merged fields come first, explicit fields override on collision).
+
+**4. Array Expansion with `[*]`**
+
+Expand arrays into multiple form fields with the same name.
+
+```yaml
+- id: reserve_post
+  type: http
+  request:
+    method: POST
+    url: /reserve
+    form_list:
+      - [facilityID, "${vars.facilityID}"]
+      - [date, ""]  # Empty placeholder
+      - [date, "${vars.dates[*]}"]  # Expands to multiple date fields
+```
+
+**Input**: `vars.dates = ["2026-02-10", "2026-02-11"]`
+
+**Result**: Form data includes `date=&date=2026-02-10&date=2026-02-11`
+
+**5. Custom Headers**
+
+Override default headers or add authorization.
+
+```yaml
+- id: api_call
+  type: http
+  request:
+    method: POST
+    url: /api/v1/resource
+    headers:
+      Authorization: "Bearer ${vars.token}"
+      Content-Type: application/json
+```
+
+### form_list Rules
+
+* **Order Preservation**: Items appear in the request in the order specified.
+* **Merge Order**: If `merge_from_vars` is used:
+  1. Merged variables are added first
+  2. Explicit `form_list` entries are added after
+  3. Duplicate keys are deduplicated (last value wins)
+* **Template Expansion**: All values support `${...}` templates.
+* **Array Expansion**: `${vars.field[*]}` expands arrays into multiple fields with the same name.
+* **Collision Handling**: When the same key appears multiple times, the last occurrence is used (logged as `collision_keys`).
+
+### Response Context
+
+After execution, the response is stored in `last` (if `save_as_last: true`):
+
+* `${last.status}` - HTTP status code (e.g., `200`, `302`, `404`)
+* `${last.text}` - Response body as text
+* `${last.url}` - Final URL (after redirects)
+* `${last.headers}` - Response headers dictionary
+
+### Error Handling
+
+Use `on_error` rules to handle HTTP failures:
+
+```yaml
+- id: login_post
+  type: http
+  request:
+    method: POST
+    url: /login
+    form_list:
+      - [username, "${secrets.USERNAME}"]
+      - [password, "${secrets.PASSWORD}"]
+  retry:
+    max: 2
+    backoff_sec: [1, 3]
+  on_error:
+    - expr: "${last.status}>=500"
+      action: retry
+    - expr: "${last.status}==401"
+      action: goto
+      goto_step_id: login_get
+    - expr: null
+      action: abort
+```
 
 ---
 
@@ -383,20 +508,146 @@ python scripts/smoke_run.py wait --run-id <run_id> --api-base-url http://localho
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `command` | string | required | `hidden_inputs` / `css` / `label_next_td`. |
-| `save_as` | string | required | Storage key. |
-| `save_to` | string | optional | `vars` or `state` (default `vars`). |
-| `source` | string | optional | Source selector (default `last.text`). |
-| `selector` | string | optional | CSS selector for `css` command. |
-| `attr` | string | optional | Attribute name for `css` command. |
-| `multiple` | boolean | optional | Collect multiple values (`css`). |
-| `label` | string | optional | Label text for `label_next_td`. |
+| `command` | string | required | Scraping method: `hidden_inputs`, `css`, or `label_next_td`. |
+| `save_as` | string | required | Variable name to store the extracted value (e.g., `login_hidden`, `reservationNo`). |
+| `save_to` | string | optional | Storage target: `vars` (default) or `state`. Values in `vars` are accessible across steps. |
+| `source` | string | optional | HTML source to scrape (default: `last.text` from previous HTTP response). |
+| `selector` | string | optional | CSS selector for `css` command (e.g., `div.content > a.link`). |
+| `attr` | string | optional | HTML attribute to extract for `css` command (e.g., `href`, `src`, `data-id`). If omitted, extracts text content. |
+| `multiple` | boolean | optional | For `css` command: extract all matching elements as a list (default: `false`, extracts first match only). |
+| `label` | string | optional | Label text for `label_next_td` command (e.g., `予約番号` to find the label and extract adjacent cell value). |
 
-### Behavior
+### Commands
+
+#### `hidden_inputs`
+
+Extracts all hidden input fields from an HTML form and stores them as a dictionary.
+
+**Use Case**: Capture CSRF tokens, session IDs, or form state for subsequent POST requests.
+
+**Fields Required**: `save_as`
+
+**Example**:
+```yaml
+- id: scrape_login_hidden
+  type: scrape
+  command: hidden_inputs
+  save_as: login_hidden
+```
+
+**Behavior**:
+- Parses HTML from `source` (default: `last.text`)
+- Finds all `<input type="hidden">` elements
+- Returns a dictionary: `{"name": "value", ...}`
+- Stored in `vars.login_hidden` (accessible as `${vars.login_hidden}`)
+
+**HTML Example**:
+```html
+<form>
+  <input type="hidden" name="csrfToken" value="abc123">
+  <input type="hidden" name="sessionId" value="xyz789">
+</form>
+```
+
+**Result**: `vars.login_hidden = {"csrfToken": "abc123", "sessionId": "xyz789"}`
+
+---
+
+#### `css`
+
+Extracts values using CSS selectors.
+
+**Use Case**: Extract specific elements by class, ID, or structure (links, text, attributes).
+
+**Fields Required**: `save_as`, `selector`
+
+**Optional Fields**: `attr`, `multiple`
+
+**Example 1**: Extract single text value
+```yaml
+- id: extract_title
+  type: scrape
+  command: css
+  selector: h1.page-title
+  save_as: page_title
+```
+
+**Example 2**: Extract attribute (e.g., link URL)
+```yaml
+- id: extract_download_link
+  type: scrape
+  command: css
+  selector: a.download-button
+  attr: href
+  save_as: download_url
+```
+
+**Example 3**: Extract multiple values as a list
+```yaml
+- id: extract_product_ids
+  type: scrape
+  command: css
+  selector: div.product
+  attr: data-product-id
+  multiple: true
+  save_as: product_ids
+```
+
+**Behavior**:
+- If `multiple: false` (default): returns first match as string (empty string if no match)
+- If `multiple: true`: returns all matches as list (empty list if no match)
+- If `attr` is specified: extracts the attribute value
+- If `attr` is omitted: extracts text content
+
+---
+
+#### `label_next_td`
+
+Extracts the value from a table cell adjacent to a label.
+
+**Use Case**: Extract structured data from HTML tables where labels and values are in adjacent cells.
+
+**Fields Required**: `save_as`, `label`
+
+**Example**:
+```yaml
+- id: extract_reservation_no
+  type: scrape
+  command: label_next_td
+  label: 予約番号
+  save_as: reservationNo
+```
+
+**HTML Example**:
+```html
+<table>
+  <tr>
+    <td>予約番号</td>
+    <td>12345678901</td>
+  </tr>
+  <tr>
+    <td>予約日時</td>
+    <td>2026-02-10 14:00</td>
+  </tr>
+</table>
+```
+
+**Behavior**:
+- Searches for a `<td>` or `<th>` containing the exact `label` text
+- Extracts the text from the next `<td>` in the same row
+- Returns extracted value as string
+- Fails if label is not found or next cell is missing
+
+**Result**: `vars.reservationNo = "12345678901"`
+
+---
+
+### General Behavior
 
 * `css` command returns empty string/list when no match is found (not a failure).
-* `hidden_inputs` requires `save_as`.
-* `label_next_td` requires `label` and `save_as`.
+* `hidden_inputs` and `label_next_td` fail if required elements are not found.
+* All commands default to `source: last.text` (HTML from the previous HTTP response).
+* Extracted values are stored in `vars` by default and accessible in subsequent steps via `${vars.save_as}`.
 
 ---
 
@@ -404,23 +655,150 @@ python scripts/smoke_run.py wait --run-id <run_id> --api-base-url http://localho
 
 ### Purpose
 
-* Evaluate conditions and determine success/failure.
+* Validate conditions based on HTTP responses, scraped values, or execution state.
+* Fail the scenario if conditions are not met.
+* Support multiple conditions with `all` (AND) or `any` (OR) logic.
 
 ### Additional Fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `conditions` | array(object) | required | Condition list. |
-| `mode` | string | optional | `all` (default) or `any`. |
-| `fail_fast` | boolean | optional | Early exit (default true). |
-| `message` | string | optional | Override failure message. |
+| `conditions` | array(object) | required | List of conditions to evaluate. |
+| `mode` | string | optional | Evaluation mode: `all` (all conditions must pass, default) or `any` (at least one must pass). |
+| `fail_fast` | boolean | optional | Stop at first failure (default: `true`). If `false`, evaluates all conditions before failing. |
+| `message` | string | optional | Custom failure message (overrides individual condition messages). |
 
 #### conditions
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `expr` | string | required | Expression to evaluate. |
-| `message` | string | optional | Message for this condition when it fails. |
+| `expr` | string | required | Boolean expression to evaluate. Returns `true` (pass) or `false` (fail). |
+| `message` | string | optional | Custom message for this specific condition when it fails. |
+
+### Use Cases
+
+**1. Verify HTTP Status**
+
+Check if login was successful.
+
+```yaml
+- id: assert_login_success
+  type: assert
+  conditions:
+    - expr: "${last.status}==200"
+      message: "Login failed with status ${last.status}"
+```
+
+**2. Multiple Conditions (AND Logic)**
+
+Validate both status and response content.
+
+```yaml
+- id: assert_reservation_success
+  type: assert
+  mode: all
+  conditions:
+    - expr: "${last.status}==200"
+      message: "Unexpected status: ${last.status}"
+    - expr: "matches(${vars.reservationNo}, '^[0-9]{11}$')"
+      message: "Invalid reservation number format: ${vars.reservationNo}"
+```
+
+**3. Any Condition (OR Logic)**
+
+Pass if at least one condition is true.
+
+```yaml
+- id: assert_success_or_redirect
+  type: assert
+  mode: any
+  conditions:
+    - expr: "${last.status}==200"
+    - expr: "${last.status}==302"
+  message: "Expected 200 or 302, got ${last.status}"
+```
+
+**4. Validate Scraped Data**
+
+Check if extracted value meets requirements.
+
+```yaml
+- id: assert_product_price
+  type: assert
+  conditions:
+    - expr: "${vars.price}>0"
+      message: "Price must be positive: ${vars.price}"
+    - expr: "${vars.price}<10000"
+      message: "Price too high: ${vars.price}"
+```
+
+**5. Complex Expressions**
+
+Use logical operators and functions.
+
+```yaml
+- id: assert_availability
+  type: assert
+  conditions:
+    - expr: "contains(${last.text}, '在庫あり') or contains(${last.text}, 'In Stock')"
+      message: "Product not available"
+```
+
+### Expression Syntax
+
+Conditions support the following:
+
+* **Comparison Operators**: `==`, `!=`, `<`, `<=`, `>`, `>=`
+* **Logical Operators**: `and`, `or`, `not`
+* **Template Variables**: `${last.status}`, `${vars.xxx}`, `${state.xxx}`
+* **Functions**:
+  * `matches(text, pattern)` - Regex matching
+  * `contains(text, substring)` - Substring check
+  * `len(value)` - Length of string or list
+
+**Examples**:
+```python
+"${last.status}==200"
+"${last.status}>=200 and ${last.status}<300"
+"contains(${last.text}, 'Success')"
+"matches(${vars.email}, '^[^@]+@[^@]+\\.[^@]+$')"
+"len(${vars.items})>0"
+```
+
+### Behavior
+
+**Mode: `all` (default)**
+* All conditions must evaluate to `true`
+* If `fail_fast: true` (default), stops at first failure
+* If `fail_fast: false`, evaluates all conditions and reports all failures
+
+**Mode: `any`**
+* At least one condition must evaluate to `true`
+* If all conditions fail, the step fails
+* `fail_fast` is ignored in `any` mode
+
+**Failure**:
+* Step fails if conditions are not met
+* Error message includes:
+  * Custom `message` (if provided)
+  * Individual condition messages
+  * Failed expression details
+* Triggers `on_error` rules (if defined)
+
+### Error Handling
+
+```yaml
+- id: assert_login_success
+  type: assert
+  conditions:
+    - expr: "${last.status}==200"
+  on_error:
+    - expr: "${last.status}==401"
+      action: goto
+      goto_step_id: login_get
+    - expr: null
+      action: abort
+```
 
 ---
 
@@ -428,13 +806,146 @@ python scripts/smoke_run.py wait --run-id <run_id> --api-base-url http://localho
 
 ### Purpose
 
-* Store final output in `result` (API/CLI response payload).
+* Define the final output of a scenario execution.
+* Store extracted or computed values to be returned to the caller (API response or CLI output).
+* Support template expansion for dynamic output composition.
 
 ### Additional Fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `fields` | object | optional | Output key/value pairs (templates allowed). |
+| `fields` | object | optional | Key-value pairs defining the output structure. Supports templates (`${...}`). |
+
+### Use Cases
+
+**1. Return Scraped Values**
+
+Return reservation information extracted from a website.
+
+```yaml
+- id: result
+  type: result
+  fields:
+    reservationNo: "${vars.reservationNo}"
+    facilityName: "${vars.facilityName}"
+    reservationDate: "${vars.selectDate}"
+```
+
+**API Response**:
+```json
+{
+  "success": true,
+  "result": {
+    "reservationNo": "12345678901",
+    "facilityName": "Meeting Room A",
+    "reservationDate": "2026-02-10"
+  }
+}
+```
+
+**2. Return Computed Values**
+
+Include both input and output values.
+
+```yaml
+- id: result
+  type: result
+  fields:
+    input_facility_id: "${vars.facilityID}"
+    input_dates: "${vars.dates}"
+    output_reservation_no: "${vars.reservationNo}"
+    status: "success"
+```
+
+**3. Return HTTP Response Details**
+
+Include HTTP status or final URL for debugging.
+
+```yaml
+- id: result
+  type: result
+  fields:
+    reservation_no: "${vars.reservationNo}"
+    final_url: "${last.url}"
+    http_status: "${last.status}"
+```
+
+**4. Return Multiple Items**
+
+Return a list of extracted values.
+
+```yaml
+- id: result
+  type: result
+  fields:
+    product_ids: "${vars.product_ids}"  # List from scraping
+    total_count: "${vars.total_count}"
+```
+
+**5. Static and Dynamic Fields**
+
+Mix static values with template expansion.
+
+```yaml
+- id: result
+  type: result
+  fields:
+    status: "completed"
+    timestamp: "${state.execution_time}"
+    reservation_no: "${vars.reservationNo}"
+    api_version: "1.0"
+```
+
+### Behavior
+
+* **Execution**: Does not fail unless template expansion fails.
+* **Storage**: Values are stored in the run context's `result` field.
+* **Output**: Returned in the API response or CLI output under `result` key.
+* **Templates**: All values support `${...}` template expansion.
+* **Multiple Result Steps**: If multiple `result` steps are executed, the last one wins (overwrites previous results).
+* **Secrets**: Do not include `${secrets.xxx}` in result fields (will be masked in logs but returned in output).
+
+### Template Expansion
+
+* `${vars.xxx}` - Input or scraped variables
+* `${state.xxx}` - Intermediate state values
+* `${last.status}` - HTTP status from last request
+* `${last.url}` - Final URL from last request
+* `${last.text}` - Response body (not recommended for large responses)
+
+### Best Practices
+
+1. **Place at End**: Typically the last or second-to-last step (before final assertions).
+2. **Clear Naming**: Use descriptive field names for API consumers.
+3. **Avoid Secrets**: Do not expose sensitive data in results.
+4. **Document Output**: Document the expected output structure for API users.
+5. **Type Consistency**: Ensure values have consistent types across executions.
+
+### Example Scenario Flow
+
+```yaml
+steps:
+  - id: login
+    type: http
+    request:
+      method: POST
+      url: /login
+      form_list:
+        - [username, "${secrets.USERNAME}"]
+        - [password, "${secrets.PASSWORD}"]
+  
+  - id: scrape_user_info
+    type: scrape
+    command: css
+    selector: span.user-id
+    save_as: user_id
+  
+  - id: result
+    type: result
+    fields:
+      user_id: "${vars.user_id}"
+      login_status: "success"
+```
 
 ---
 
@@ -442,15 +953,187 @@ python scripts/smoke_run.py wait --run-id <run_id> --api-base-url http://localho
 
 ### Purpose
 
-* Emit logs during execution.
+* Emit structured log messages during scenario execution.
+* Provide visibility into execution progress and intermediate values.
+* Support debugging and auditing with template expansion.
 
 ### Additional Fields
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `message` | string | required | Log message (templates allowed, secrets forbidden). |
-| `level` | string | optional | `info` / `debug` / `error` (lowercase). |
-| `fields` | object | optional | Additional structured fields. |
+| `message` | string | required | Log message text. Supports templates (`${...}`). **Secrets are forbidden**. |
+| `level` | string | optional | Log level: `info` (default), `debug`, `error`, `warning`. |
+| `fields` | object | optional | Additional structured fields for log context (key-value pairs). |
+
+### Use Cases
+
+**1. Progress Indicator**
+
+Log execution milestones.
+
+```yaml
+- id: log_start
+  type: log
+  message: "Starting reservation for facility ${vars.facilityID}"
+  level: info
+```
+
+**2. Debug Values**
+
+Inspect intermediate values during development.
+
+```yaml
+- id: log_debug
+  type: log
+  message: "Scraped reservation number: ${vars.reservationNo}"
+  level: debug
+```
+
+**3. Structured Logging**
+
+Add context fields for better log analysis.
+
+```yaml
+- id: log_reservation
+  type: log
+  message: "Reservation completed"
+  level: info
+  fields:
+    reservation_no: "${vars.reservationNo}"
+    facility_id: "${vars.facilityID}"
+    dates: "${vars.dates}"
+```
+
+**Output**:
+```json
+{
+  "type": "step.log",
+  "level": "info",
+  "message": "Reservation completed",
+  "reservation_no": "12345678901",
+  "facility_id": "001",
+  "dates": ["2026-02-10", "2026-02-11"]
+}
+```
+
+**4. Error Context**
+
+Log errors with relevant context before failing.
+
+```yaml
+- id: log_error
+  type: log
+  message: "Login failed with status ${last.status}"
+  level: error
+  fields:
+    url: "${last.url}"
+    status: "${last.status}"
+```
+
+**5. Conditional Logging**
+
+Combine with conditional execution (via previous step results).
+
+```yaml
+- id: log_retry
+  type: log
+  message: "Retrying request (attempt ${state.retry_count})"
+  level: warning
+```
+
+### Template Expansion
+
+Messages and fields support template variables:
+
+* `${vars.xxx}` - Input or scraped variables
+* `${state.xxx}` - Intermediate state
+* `${last.status}` - HTTP status
+* `${last.url}` - Last request URL
+* **Forbidden**: `${secrets.xxx}` (will cause step failure)
+
+### Security
+
+**Secret Detection**:
+* Templates referencing `${secrets.xxx}` are **rejected** at runtime
+* Step fails with error: "Log templates must not reference secrets"
+* This prevents accidental secret exposure in logs
+
+**Safe Example**:
+```yaml
+- id: log_user
+  type: log
+  message: "Logged in as user ${vars.username}"  # OK: vars, not secrets
+```
+
+**Unsafe Example** (will fail):
+```yaml
+- id: log_credentials
+  type: log
+  message: "Using password ${secrets.PASSWORD}"  # ERROR: secrets forbidden
+```
+
+### Log Levels
+
+| Level | Use Case |
+| --- | --- |
+| `debug` | Development/troubleshooting, verbose output |
+| `info` | Normal execution progress, milestones |
+| `warning` | Non-fatal issues, retries |
+| `error` | Errors, failures (before abort) |
+
+### Behavior
+
+* **Execution**: Always succeeds unless template expansion fails or secrets are referenced.
+* **Output**: Emitted to the configured logger (console, file, or structured log store).
+* **Context**: Automatically includes `run_id`, `step_id`, `type` fields.
+* **Timing**: Executed at the point where it appears in the step sequence.
+* **Non-Blocking**: Does not affect scenario success/failure (unless template error occurs).
+
+### Best Practices
+
+1. **Use Info for Milestones**: Log major progress points at `info` level.
+2. **Use Debug Sparingly**: Reserve `debug` for development; disable in production.
+3. **Add Structured Fields**: Use `fields` instead of embedding data in message strings.
+4. **Never Log Secrets**: Do not reference `${secrets.xxx}` in messages or fields.
+5. **Log Before Critical Steps**: Add logs before potentially failing steps for debugging.
+
+### Example Scenario Flow
+
+```yaml
+steps:
+  - id: log_start
+    type: log
+    message: "Starting login sequence"
+    level: info
+  
+  - id: login_post
+    type: http
+    request:
+      method: POST
+      url: /login
+      form_list:
+        - [username, "${secrets.USERNAME}"]
+        - [password, "${secrets.PASSWORD}"]
+  
+  - id: log_login_result
+    type: log
+    message: "Login completed with status ${last.status}"
+    level: info
+    fields:
+      status: "${last.status}"
+      final_url: "${last.url}"
+  
+  - id: scrape_user_id
+    type: scrape
+    command: css
+    selector: span.user-id
+    save_as: user_id
+  
+  - id: log_user_id
+    type: log
+    message: "Extracted user ID: ${vars.user_id}"
+    level: debug
+```
 
 ---
 

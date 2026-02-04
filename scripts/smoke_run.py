@@ -179,6 +179,8 @@ def _run_local(args: argparse.Namespace) -> int:
     try:
         scenario = loader.load_from_file(scenario_path)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise ValueError(f"Failed to load scenario: {e}") from e
 
     print(f"Scenario: {scenario.meta.name} (v{scenario.meta.version})")

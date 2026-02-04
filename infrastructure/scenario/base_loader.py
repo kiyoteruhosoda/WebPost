@@ -66,12 +66,16 @@ class ScenarioLoaderBase(ABC):
         )
 
     def _load_inputs(self, data: Dict[str, Any]) -> ScenarioInputs:
+        if data is None:
+            data = {}
         return ScenarioInputs(
             required=data.get("required", []),
             optional=data.get("optional", []),
         )
 
     def _load_defaults(self, data: Dict[str, Any]) -> ScenarioDefaults:
+        if data is None:
+            data = {}
         http_data = data.get("http")
         http_defaults = None
         if http_data:
@@ -121,7 +125,7 @@ class ScenarioLoaderBase(ABC):
         return None
 
     def _load_retry(self, data: Dict[str, Any]) -> RetryPolicy:
-        if not data:
+        if not data or data is None:
             return RetryPolicy()
         return RetryPolicy(
             max=data.get("max", 0),
@@ -141,6 +145,8 @@ class ScenarioLoaderBase(ABC):
 
     def _load_http_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> HttpStep:
         req_data = data.get("request", {})
+        if req_data is None:
+            req_data = {}
 
         form_list = []
         for item in req_data.get("form_list", []):

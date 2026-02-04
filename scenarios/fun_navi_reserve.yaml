@@ -8,21 +8,6 @@ meta:
   user_agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
 
 inputs:
-  required:
-    - mansionGNo
-    - facilityID
-    - facilityNo
-    - selectDate
-    - toNo
-    - roomNo
-    - hiddenUserId
-    - dates
-  optional:
-    - appliStart
-    - eventFlg
-    - eventFacilityNo
-    - rsvNo
-    - spEventFlg
 
 defaults:
   http:
