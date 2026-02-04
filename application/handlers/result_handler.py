@@ -37,7 +37,7 @@ class ResultStepHandler(StepHandler):
                 result[key] = rendered
 
             # ctx に result を保存（Run完了時に使用）
-            if not hasattr(ctx, 'result'):
+            if ctx.result is None:
                 ctx.result = {}
             ctx.result.update(result)
 

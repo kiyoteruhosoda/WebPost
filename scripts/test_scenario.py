@@ -13,6 +13,10 @@ from __future__ import annotations
 import sys
 import json
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables first
+load_dotenv()
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -136,7 +140,6 @@ def main():
     # 4) Create RunContext
     ctx = RunContext(
         run_id="test_run_001",
-        scenario=scenario,
         vars=vars_input,
     )
     

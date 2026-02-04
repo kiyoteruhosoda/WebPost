@@ -20,3 +20,4 @@ class RunContext:
     vars: Dict[str, Any] = field(default_factory=dict)
     state: Dict[str, Any] = field(default_factory=dict)
     last: Optional[LastResponse] = None
+    result: Optional[Dict[str, Any]] = None

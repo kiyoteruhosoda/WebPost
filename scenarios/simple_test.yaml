@@ -1,0 +1,38 @@
+# Simple test scenario
+meta:
+  id: simple_test
+  name: simple-test
+  description: Simple test scenario with log step
+  version: 1
+  enabled: true
+
+defaults:
+  http:
+    base_url: https://httpbin.org
+    timeout_sec: 10
+
+steps:
+  - id: test_get
+    type: http
+    enabled: true
+    request:
+      method: GET
+      url: /get
+  - id: save_data
+    type: scrape
+    enabled: true
+    command: css
+    selector: body
+    save_as: response_body
+  - id: log_result
+    type: log
+    message: "Test completed successfully!"
+    level: INFO
+    fields:
+      status: "${last.status}"
+  - id: result
+    type: result
+    enabled: true
+    fields:
+      status: "${last.status}"
+      body_preview: "${vars.response_body}"
