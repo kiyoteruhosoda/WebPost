@@ -11,6 +11,8 @@ from domain.steps.base import Step
 class ScrapeStep(Step):
     command: str               # "hidden_inputs" | "css" | "label_next_td"
     save_as: str
+    save_to: str = "vars"
+    source: str = "last.text"
     selector: Optional[str] = None
     attr: Optional[str] = None
     multiple: bool = False

@@ -172,9 +172,9 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
   * `.json` → JSONローダー
 * 未対応拡張子は、実行前にフォーマットエラーとする。
 
-### TODO
+### DONE
 
-* TODO: `scenario_id` で複数候補が存在する場合の優先規則（例: `.json`優先）
+* DONE: Prefer `.json` when multiple scenario files share the same `scenario_id`.
 
 ---
 
@@ -211,10 +211,10 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 * テンプレート展開は `${...}` を評価し置換する。
 * 値が配列/辞書の場合の扱いは、各フィールドの型仕様に従う。
 
-### TODO
+### DONE
 
-* TODO: 未定義参照時の挙動を固定（空文字/例外/そのまま）
-* TODO: `${vars.dates[*]}` の配列展開記法を正式仕様化（現状は実装依存）
+* DONE: Undefined references resolve to empty string.
+* DONE: `${vars.dates[*]}` expands to a list and renders as a comma-joined string when used in templates.
 
 ---
 
@@ -275,9 +275,12 @@ scenario run --scenario-file scenarios/sample.json --secrets '{"api_key":"xxx"}'
 | `timeout_sec` | integer | 任意 | HTTPタイムアウト |
 | `headers`     | object  | 任意 | 既定ヘッダ      |
 
+### DONE
+
+* DONE: Validate required inputs before execution (HTTP 400 / CLI exit 1).
+
 ### TODO
 
-* TODO: inputsに基づく実行前バリデーション（不足時はHTTP 400/CLI exit 1）
 * TODO: versionの競合制御（Repository運用時）
 
 ---
@@ -295,10 +298,13 @@ step.start {"type":"step.start","run_id":"...","step_id":"login"}
 step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_ms":120}
 ```
 
-### TODO
+### DONE
 
-* TODO: 同期実行でも `run_id` を付与してログ相関を統一（将来の非同期化に備える）
-* TODO: `http.request/http.response` のログスキーマ標準化（bodyは原則保存しない）
+* DONE: Assign `run_id` for sync runs and bind it to log entries.
+
+### DONE
+
+* DONE: Standardize `http.request` / `http.response` log schema without body storage.
 
 ---
 
@@ -309,9 +315,12 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 * `secrets` はログに出さない（message/fieldsへの展開は禁止）
 * 抽出値（予約番号等）は必要に応じてマスク（末尾数桁のみ）
 
+### DONE
+
+* DONE: Fail fast when `${secrets.*}` appears in log message or fields.
+
 ### TODO
 
-* TODO: `${secrets.*}` が log に出た場合の強制エラー（実行停止）を仕様化
 * TODO: HTTPの `secrets` を廃止し `secret_ref` に移行（KeyVault等）
 
 ---
@@ -337,7 +346,7 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 | `max`         | integer        | 任意 | 最大リトライ回数 |
 | `backoff_sec` | array(integer) | 任意 | バックオフ秒数  |
 
-> TODO: backoff配列不足時の扱い（最後を繰り返す等）を固定
+> DONE: When backoff array is shorter than retries, reuse the last value.
 
 ### on_error（実装済み）
 
@@ -455,10 +464,10 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 }
 ```
 
-### TODO
+### DONE
 
-* TODO: `save_to`（vars/stateどちらへ保存するか）を仕様化（現状save_asのみだと曖昧化しやすい）
-* TODO: `source`（last.text以外）を指定できるようにする
+* DONE: `save_to` determines whether to store results in `vars` or `state`.
+* DONE: `source` selects the input source (default `last.text`).
 
 ---
 
@@ -531,9 +540,9 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 }
 ```
 
-### TODO
+### DONE
 
-* TODO: resultが複数回出た場合の挙動（上書き/マージ/エラー）固定
+* DONE: Multiple result steps merge into `ctx.result` (later keys overwrite).
 
 ---
 
@@ -567,9 +576,9 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 }
 ```
 
-### TODO
+### DONE
 
-* TODO: `${secrets.*}` が message/fields に出たら強制失敗（情報漏洩防止）
+* DONE: Reject `${secrets.*}` in `message` or `fields` to prevent leakage.
 
 ---
 

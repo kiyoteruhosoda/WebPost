@@ -6,20 +6,26 @@ from typing import Any, Dict
 from application.handlers.base import StepHandler
 from application.outcome import StepOutcome
 from application.services.execution_deps import ExecutionDeps
+from application.services.secret_template_policy import BlockSecretTemplatePolicy, SecretTemplatePolicy
 from application.services.template_renderer import RenderSources, TemplateRenderer
 from domain.run import RunContext
 from domain.steps.log import LogStep
 
 
 class LogStepHandler(StepHandler):
-    def __init__(self, renderer: TemplateRenderer):
+    def __init__(self, renderer: TemplateRenderer, secret_policy: SecretTemplatePolicy | None = None):
         self._renderer = renderer
+        self._secret_policy = secret_policy or BlockSecretTemplatePolicy()
 
     def supports(self, step) -> bool:
         return isinstance(step, LogStep)
 
     def handle(self, step: LogStep, ctx: RunContext, deps: ExecutionDeps) -> StepOutcome:
         try:
+            # Reason: Prevent secrets from being emitted in logs.
+            # Impact: Log steps referencing ${secrets.*} now fail fast.
+            self._secret_policy.assert_safe(step.message)
+            self._secret_policy.assert_safe(step.fields)
             src = RenderSources(
                 vars=ctx.vars,
                 state=ctx.state,

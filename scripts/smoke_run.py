@@ -28,6 +28,7 @@ from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
 from application.handlers.log_handler import LogStepHandler
+from application.services.scenario_input_validator import ScenarioInputValidatorService
 from application.services.template_renderer import TemplateRenderer
 from application.services.execution_deps import ExecutionDeps
 from application.ports.requests_client import RequestsSessionHttpClient
@@ -35,6 +36,7 @@ from infrastructure.secrets.env_secret_provider import EnvSecretProvider
 from infrastructure.url.base_url_resolver import BaseUrlResolver
 from infrastructure.logging.console_logger import ConsoleLogger
 from infrastructure.scenario.loader_registry import ScenarioLoaderRegistry
+from domain.exceptions import ValidationError
 from domain.run import RunContext
 
 
@@ -69,6 +71,15 @@ def main():
     print(f"Scenario: {scenario.meta.name} (v{scenario.meta.version})")
     print(f"Steps: {len(scenario.steps)}")
     
+    # Validate required inputs before execution.
+    # Reason: Ensure missing inputs fail early in CLI-like runs.
+    # Impact: Exits with code 1 when required inputs are absent.
+    try:
+        ScenarioInputValidatorService.default().validate(scenario, vars_input)
+    except ValidationError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
+
     # Setup execution environment
     renderer = TemplateRenderer()
     http_client = RequestsSessionHttpClient()

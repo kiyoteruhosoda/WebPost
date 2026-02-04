@@ -28,7 +28,9 @@ from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
 from application.handlers.log_handler import LogStepHandler
+from application.services.scenario_input_validator import ScenarioInputValidatorService
 from domain.run import RunContext
+from domain.exceptions import ValidationError
 
 
 # リクエストモデル
@@ -97,7 +99,12 @@ def run_scenario(
         loader = registry.get_loader(scenario_file)
         scenario = loader.load_from_file(scenario_file)
         
-        # 3. 実行環境を構築
+        # 3. 実行前バリデーション
+        # Reason: Enforce required inputs at the API boundary.
+        # Impact: Missing inputs return HTTP 400 instead of runtime failures.
+        ScenarioInputValidatorService.default().validate(scenario, request.vars)
+
+        # 4. 実行環境を構築
         # EnvSecretProviderは環境変数から読み込むので、
         # リクエストのsecretsは別の実装が必要
         # ここでは簡易的にdictを持つクラスを作成
@@ -117,7 +124,7 @@ def run_scenario(
             url_resolver=url_resolver
         )
         
-        # 4. ハンドラー登録
+        # 5. ハンドラー登録
         renderer = TemplateRenderer()
         http_client = RequestsSessionHttpClient()
         
@@ -130,7 +137,7 @@ def run_scenario(
         ]
         registry = HandlerRegistry(handlers)
         
-        # 5. 実行
+        # 6. 実行
         executor = StepExecutor(registry)
         ctx = RunContext(
             scenario=scenario,
@@ -142,7 +149,7 @@ def run_scenario(
         
         executor.execute(scenario.steps, ctx, deps)
         
-        # 6. 結果を返す
+        # 7. 結果を返す
         return RunScenarioResponse(
             success=True,
             result=ctx.result
@@ -150,6 +157,8 @@ def run_scenario(
         
     except HTTPException:
         raise
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error("scenario_execution_failed", error=str(e), scenario_id=scenario_id)
         return RunScenarioResponse(
