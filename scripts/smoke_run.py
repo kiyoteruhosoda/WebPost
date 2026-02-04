@@ -122,6 +122,7 @@ def main():
     
     # Display results
     print("\n=== Result ===")
+    print(f"Run ID: {ctx.run_id}")
     print(f"Success: {result.ok}")
     if not result.ok:
         print(f"Failed Step: {result.failed_step_id}")
