@@ -32,7 +32,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["application*", "domain*", "infrastructure*"]
+include = ["api*", "application*", "domain*", "infrastructure*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

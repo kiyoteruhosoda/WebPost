@@ -29,8 +29,8 @@
 
 * TODO: **非同期Run（run_id）方式**を正式導入する（監査・長時間実行・ログ参照向き）
 * TODO: HTTPに `wait_sec`（上限付き待機）を導入し、非同期と同期の両立を提供する
-* TODO: `secret_ref`（SecretProvider参照）方式を導入し、HTTP body で secrets を渡さない運用に寄せる
-* TODO: idempotency key による二重実行防止
+* DONE: `secret_ref`（SecretProvider参照）方式を導入し、HTTP body で secrets を渡さない運用に寄せる
+* DONE: idempotency key による二重実行防止
 * TODO: シナリオの保存先をRepository（DB等）に拡張（現状はファイル前提）
 
 ---
@@ -321,7 +321,7 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 
 ### TODO
 
-* TODO: HTTPの `secrets` を廃止し `secret_ref` に移行（KeyVault等）
+* DONE: HTTPで `secret_ref` を導入し、SecretProvider参照を選択可能にする（inline secretsは互換用）
 
 ---
 
@@ -590,7 +590,7 @@ step.end {"type":"step.end","run_id":"...","step_id":"login","ok":true,"elapsed_
 
 ### TODO
 
-* TODO: `error` の構造化（code/message/step_id/last.status 等）
+* DONE: `error` の構造化（code/message/step_id/last.status 等）
 
 ---
 
