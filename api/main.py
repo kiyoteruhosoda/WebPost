@@ -34,6 +34,7 @@ from application.services.template_renderer import TemplateRenderer
 from application.executor.handler_registry import HandlerRegistry
 from application.executor.step_executor import StepExecutor
 from application.handlers.http_handler import HttpStepHandler
+from application.handlers.browser_handler import BrowserStepHandler
 from application.handlers.scrape_handler import ScrapeStepHandler
 from application.handlers.assert_handler import AssertStepHandler
 from application.handlers.result_handler import ResultStepHandler
@@ -46,6 +47,8 @@ from domain.run import RunContext
 from domain.exceptions import ValidationError
 from domain.ids import IdempotencyKey
 from domain.run_record import RunRecord, RunStatus
+from domain.steps.browser import BrowserStep
+from infrastructure.browser.playwright_browser_client import PlaywrightBrowserClient
 
 
 # リクエストモデル
@@ -205,7 +208,7 @@ def _build_execution_components(
     request: RunScenarioRequest,
     logger: CompositeLogger,
     run_id: str,
-) -> tuple[StepExecutor, RunContext, ExecutionDeps]:
+) -> tuple[StepExecutor, RunContext, ExecutionDeps, Optional[PlaywrightBrowserClient]]:
     resolver = _build_secret_provider_resolver()
     secret_provider = resolver.resolve(request)
     base_url = scenario.defaults.http.base_url if scenario.defaults.http else ""
@@ -219,7 +222,6 @@ def _build_execution_components(
 
     renderer = TemplateRenderer()
     http_client = RequestsSessionHttpClient()
-
     handlers = [
         HttpStepHandler(http_client, renderer),
         ScrapeStepHandler(),
@@ -227,6 +229,20 @@ def _build_execution_components(
         ResultStepHandler(renderer),
         LogStepHandler(renderer),
     ]
+
+    contains_browser_step = any(isinstance(step, BrowserStep) for step in scenario.steps)
+    browser_client: Optional[PlaywrightBrowserClient] = None
+    if contains_browser_step:
+        browser_defaults = getattr(scenario.defaults, "browser", None)
+        browser_client = PlaywrightBrowserClient(
+            headless=True,
+            viewport_width=getattr(browser_defaults, "viewport_width", None),
+            viewport_height=getattr(browser_defaults, "viewport_height", None),
+            user_agent=getattr(browser_defaults, "user_agent", None),
+            locale=getattr(browser_defaults, "locale", None),
+            timezone_id=getattr(browser_defaults, "timezone_id", None),
+        )
+        handlers.insert(1, BrowserStepHandler(browser_client, renderer))
     registry = HandlerRegistry(handlers)
     executor = StepExecutor(registry)
 
@@ -237,7 +253,7 @@ def _build_execution_components(
         last=None,
         result={},
     )
-    return executor, ctx, deps
+    return executor, ctx, deps, browser_client
 
 
 def _execute_scenario(
@@ -250,7 +266,7 @@ def _execute_scenario(
     error_builder = ExecutionErrorBuilder()
 
     try:
-        executor, ctx, deps = _build_execution_components(scenario, request, logger, run_id)
+        executor, ctx, deps, browser_client = _build_execution_components(scenario, request, logger, run_id)
         execution_result = executor.execute(scenario.steps, ctx, deps)
         if not execution_result.ok:
             detail = error_builder.build_from_result(execution_result, ctx)
@@ -270,6 +286,9 @@ def _execute_scenario(
             error=str(exc),
             error_detail=ErrorDetailResponse(**detail.__dict__),
         )
+    finally:
+        if "browser_client" in locals() and browser_client is not None:
+            browser_client.close()
 
 
 def _create_run_record(scenario_id: str, run_id: str) -> RunRecord:

@@ -19,6 +19,7 @@ dependencies = [
   "python-dotenv==1.0.1",
   "loguru==0.7.2",
   "PyYAML==6.0.2",
+  "playwright",
 ]
 
 [project.optional-dependencies]
@@ -43,4 +44,7 @@ addopts = [
     "--verbose",
     "--strict-markers",
     "-ra",
+]
+markers = [
+    "integration: marks tests that use real external integrations",
 ]

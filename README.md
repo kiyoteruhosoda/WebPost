@@ -370,3 +370,10 @@ http.form_composed {
 - [docs/API.md](docs/API.md) - REST API ドキュメント
 - [docs/SECRETS.md](docs/SECRETS.md) - シークレット管理ガイド
 - [docs/HTTP_HEADERS.md](docs/HTTP_HEADERS.md) - HTTPヘッダー自動設定（User-Agent, Referer, Cookie）
+
+## Playwright Setup
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
