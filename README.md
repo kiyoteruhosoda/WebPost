@@ -358,7 +358,7 @@ http.form_composed {
 - [x] **REST API（FastAPI）** - `/scenarios/{id}/runs` エンドポイント実装済み
 - [ ] Run永続化（SQLite/PostgreSQL）
 - [ ] 非同期実行（RQ/Redis）
-- [ ] Playwright統合（JavaScript対応）
+- [x] Playwright統合（JavaScript対応）
 - [ ] idempotency key対応
 - [ ] より豊富なアサーション関数
 - [ ] ログマスキングの強化
@@ -370,3 +370,85 @@ http.form_composed {
 - [docs/API.md](docs/API.md) - REST API ドキュメント
 - [docs/SECRETS.md](docs/SECRETS.md) - シークレット管理ガイド
 - [docs/HTTP_HEADERS.md](docs/HTTP_HEADERS.md) - HTTPヘッダー自動設定（User-Agent, Referer, Cookie）
+
+## Playwright Setup
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+## Browser Step の使い方
+
+`type: browser` を使うと、既存の `http` step を維持したまま、SPA や JavaScript が必要な画面操作をシナリオに追加できます。
+
+```yaml
+defaults:
+  http:
+    base_url: "https://example.com"
+  browser:
+    viewport_width: 1280
+    viewport_height: 720
+    user_agent: "WebPostBot/1.0"
+    locale: "ja-JP"
+    timezone_id: "Asia/Tokyo"
+
+steps:
+  - id: open_login
+    type: browser
+    action: goto
+    url: "/login"
+
+  - id: wait_loaded
+    type: browser
+    action: wait_for_load_state
+    value: "domcontentloaded"
+
+  - id: input_user
+    type: browser
+    action: fill
+    selector: "#user"
+    value: "${secrets.USER_ID}"
+
+  - id: input_password
+    type: browser
+    action: fill
+    selector: "#password"
+    value: "${secrets.PASSWORD}"
+
+  - id: click_login
+    type: browser
+    action: click
+    selector: "button[type=submit]"
+
+  - id: save_title
+    type: browser
+    action: text
+    selector: "h1"
+    save_as: "page_title"
+
+  - id: result
+    type: result
+    fields:
+      title: "${state.page_title}"
+```
+
+### サポートしている action
+
+- `goto`
+- `click`
+- `fill`
+- `select`
+- `wait_for_selector`
+- `wait_for_url`
+- `wait_for_load_state`
+- `text`
+- `attr`
+- `screenshot`
+
+### 補足
+
+- `goto` / `wait_for_url` は `defaults.http.base_url` を使って相対URLを解決します。
+- `text` / `attr` は `save_as` を指定すると `state` に保存され、`result` step から `${state.xxx}` で参照できます。
+- `screenshot` は `tmp/browser/{run_id}/{step_id}.png` に保存されます。
+- browser step で失敗が発生した場合、自動で `tmp/browser/{run_id}/{step_id}_error.png` を保存します。

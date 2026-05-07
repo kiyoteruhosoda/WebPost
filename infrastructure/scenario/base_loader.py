@@ -11,6 +11,7 @@ from domain.scenario import (
     ScenarioInputs,
     ScenarioDefaults,
     HttpDefaults,
+    BrowserDefaults,
 )
 from domain.steps.base import Step, RetryPolicy, OnErrorRule
 from domain.steps.http import HttpStep, HttpRequestSpec
@@ -18,6 +19,7 @@ from domain.steps.scrape import ScrapeStep
 from domain.steps.assertion import AssertStep, ConditionSpec
 from domain.steps.result import ResultStep
 from domain.steps.log import LogStep
+from domain.steps.browser import BrowserStep
 
 
 class ScenarioLoadError(Exception):
@@ -77,15 +79,25 @@ class ScenarioLoaderBase(ABC):
         if data is None:
             data = {}
         http_data = data.get("http")
+        browser_data = data.get("browser")
         http_defaults = None
+        browser_defaults = None
         if http_data:
             http_defaults = HttpDefaults(
                 base_url=http_data.get("base_url", ""),
                 timeout_sec=http_data.get("timeout_sec", 20),
                 headers=http_data.get("headers", {}),
             )
+        if browser_data:
+            browser_defaults = BrowserDefaults(
+                viewport_width=browser_data.get("viewport_width"),
+                viewport_height=browser_data.get("viewport_height"),
+                user_agent=browser_data.get("user_agent"),
+                locale=browser_data.get("locale"),
+                timezone_id=browser_data.get("timezone_id"),
+            )
 
-        return ScenarioDefaults(http=http_defaults)
+        return ScenarioDefaults(http=http_defaults, browser=browser_defaults)
 
     def _load_steps(self, steps_data: List[Dict[str, Any]]) -> List[Step]:
         steps: List[Step] = []
@@ -121,6 +133,8 @@ class ScenarioLoaderBase(ABC):
             return self._load_result_step(data, common_kwargs)
         if step_type == "log":
             return self._load_log_step(data, common_kwargs)
+        if step_type == "browser":
+            return self._load_browser_step(data, common_kwargs)
 
         return None
 
@@ -209,5 +223,17 @@ class ScenarioLoaderBase(ABC):
             message=data.get("message", ""),
             level=data.get("level", "info"),
             fields=data.get("fields", {}),
+            **common,
+        )
+
+    def _load_browser_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> BrowserStep:
+        return BrowserStep(
+            action=data.get("action", ""),
+            url=data.get("url"),
+            selector=data.get("selector"),
+            value=data.get("value"),
+            attr=data.get("attr"),
+            save_as=data.get("save_as"),
+            timeout_ms=data.get("timeout_ms"),
             **common,
         )

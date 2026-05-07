@@ -34,8 +34,18 @@ class HttpDefaults:
 
 
 @dataclass(frozen=True)
+class BrowserDefaults:
+    viewport_width: Optional[int] = None
+    viewport_height: Optional[int] = None
+    user_agent: Optional[str] = None
+    locale: Optional[str] = None
+    timezone_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class ScenarioDefaults:
     http: Optional[HttpDefaults] = None
+    browser: Optional[BrowserDefaults] = None
 
 
 @dataclass(frozen=True)

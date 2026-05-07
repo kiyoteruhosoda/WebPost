@@ -17,3 +17,5 @@ __all__ = [
     "ResultStep",
     "LogStep",
 ]
+
+from .browser import BrowserStep
