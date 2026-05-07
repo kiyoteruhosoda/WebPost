@@ -8,6 +8,7 @@ from domain.steps.http import HttpStep
 from domain.steps.result import ResultStep
 from domain.steps.log import LogStep
 from domain.steps.scrape import ScrapeStep
+from domain.steps.browser import BrowserStep
 
 
 def test_find_yaml_scenario_file(tmp_path: Path) -> None:
@@ -77,6 +78,10 @@ steps:
   - id: log_step
     type: log
     message: "log ${vars.foo}"
+  - id: open_page
+    type: browser
+    action: goto
+    url: "https://example.com"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -88,7 +93,7 @@ steps:
     assert scenario.meta.version == 2
     assert scenario.defaults.http is not None
     assert scenario.defaults.http.base_url == "https://example.com"
-    assert len(scenario.steps) == 4
+    assert len(scenario.steps) == 5
     assert isinstance(scenario.steps[0], HttpStep)
     assert scenario.steps[0].request.form_list == [("foo", "bar")]
     assert isinstance(scenario.steps[1], ResultStep)
@@ -96,3 +101,4 @@ steps:
     assert scenario.steps[2].save_to == "state"
     assert scenario.steps[2].source == "last.text"
     assert isinstance(scenario.steps[3], LogStep)
+    assert isinstance(scenario.steps[4], BrowserStep)

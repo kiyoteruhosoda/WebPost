@@ -1,0 +1,27 @@
+meta:
+  id: sample-browser
+  name: sample-browser
+  version: 1
+  enabled: true
+
+steps:
+  - id: open_example
+    type: browser
+    action: goto
+    url: "https://example.com"
+
+  - id: wait_h1
+    type: browser
+    action: wait_for_selector
+    selector: "h1"
+
+  - id: extract_title
+    type: browser
+    action: text
+    selector: "h1"
+    save_as: "title"
+
+  - id: result
+    type: result
+    fields:
+      title: "${state.title}"

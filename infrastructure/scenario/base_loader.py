@@ -18,6 +18,7 @@ from domain.steps.scrape import ScrapeStep
 from domain.steps.assertion import AssertStep, ConditionSpec
 from domain.steps.result import ResultStep
 from domain.steps.log import LogStep
+from domain.steps.browser import BrowserStep
 
 
 class ScenarioLoadError(Exception):
@@ -121,6 +122,8 @@ class ScenarioLoaderBase(ABC):
             return self._load_result_step(data, common_kwargs)
         if step_type == "log":
             return self._load_log_step(data, common_kwargs)
+        if step_type == "browser":
+            return self._load_browser_step(data, common_kwargs)
 
         return None
 
@@ -209,5 +212,17 @@ class ScenarioLoaderBase(ABC):
             message=data.get("message", ""),
             level=data.get("level", "info"),
             fields=data.get("fields", {}),
+            **common,
+        )
+
+    def _load_browser_step(self, data: Dict[str, Any], common: Dict[str, Any]) -> BrowserStep:
+        return BrowserStep(
+            action=data.get("action", ""),
+            url=data.get("url"),
+            selector=data.get("selector"),
+            value=data.get("value"),
+            attr=data.get("attr"),
+            save_as=data.get("save_as"),
+            timeout_ms=data.get("timeout_ms"),
             **common,
         )
