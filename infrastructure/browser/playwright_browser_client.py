@@ -3,15 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
-
-
 class PlaywrightBrowserClient:
     def __init__(self, headless: bool = True) -> None:
+        from playwright.sync_api import sync_playwright
+
         self._playwright = sync_playwright().start()
-        self._browser: Browser = self._playwright.chromium.launch(headless=headless)
-        self._context: BrowserContext = self._browser.new_context()
-        self._page: Page = self._context.new_page()
+        self._browser = self._playwright.chromium.launch(headless=headless)
+        self._context = self._browser.new_context()
+        self._page = self._context.new_page()
 
     def goto(self, url: str, timeout_ms: Optional[int] = None) -> None:
         self._page.goto(url, timeout=timeout_ms)
@@ -47,6 +46,28 @@ class PlaywrightBrowserClient:
         return str(output)
 
     def close(self) -> None:
-        self._context.close()
-        self._browser.close()
-        self._playwright.stop()
+        context = getattr(self, "_context", None)
+        browser = getattr(self, "_browser", None)
+        playwright = getattr(self, "_playwright", None)
+
+        self._context = None
+        self._browser = None
+        self._playwright = None
+
+        try:
+            if context is not None:
+                context.close()
+        except Exception:
+            pass
+
+        try:
+            if browser is not None:
+                browser.close()
+        except Exception:
+            pass
+
+        try:
+            if playwright is not None:
+                playwright.stop()
+        except Exception:
+            pass

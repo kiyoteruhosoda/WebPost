@@ -47,6 +47,7 @@ from domain.run import RunContext
 from domain.exceptions import ValidationError
 from domain.ids import IdempotencyKey
 from domain.run_record import RunRecord, RunStatus
+from domain.steps.browser import BrowserStep
 from infrastructure.browser.playwright_browser_client import PlaywrightBrowserClient
 
 
@@ -207,7 +208,7 @@ def _build_execution_components(
     request: RunScenarioRequest,
     logger: CompositeLogger,
     run_id: str,
-) -> tuple[StepExecutor, RunContext, ExecutionDeps, PlaywrightBrowserClient]:
+) -> tuple[StepExecutor, RunContext, ExecutionDeps, Optional[PlaywrightBrowserClient]]:
     resolver = _build_secret_provider_resolver()
     secret_provider = resolver.resolve(request)
     base_url = scenario.defaults.http.base_url if scenario.defaults.http else ""
@@ -221,16 +222,19 @@ def _build_execution_components(
 
     renderer = TemplateRenderer()
     http_client = RequestsSessionHttpClient()
-    browser_client = PlaywrightBrowserClient(headless=True)
-
     handlers = [
         HttpStepHandler(http_client, renderer),
-        BrowserStepHandler(browser_client, renderer),
         ScrapeStepHandler(),
         AssertStepHandler(),
         ResultStepHandler(renderer),
         LogStepHandler(renderer),
     ]
+
+    contains_browser_step = any(isinstance(step, BrowserStep) for step in scenario.steps)
+    browser_client: Optional[PlaywrightBrowserClient] = None
+    if contains_browser_step:
+        browser_client = PlaywrightBrowserClient(headless=True)
+        handlers.insert(1, BrowserStepHandler(browser_client, renderer))
     registry = HandlerRegistry(handlers)
     executor = StepExecutor(registry)
 
@@ -275,7 +279,7 @@ def _execute_scenario(
             error_detail=ErrorDetailResponse(**detail.__dict__),
         )
     finally:
-        if "browser_client" in locals():
+        if "browser_client" in locals() and browser_client is not None:
             browser_client.close()
 
 

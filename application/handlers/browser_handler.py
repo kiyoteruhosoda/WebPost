@@ -31,7 +31,7 @@ class BrowserStepHandler(StepHandler):
             timeout_ms = step.timeout_ms
 
             if action == "goto":
-                self._browser.goto(self._render(step.url, src), timeout_ms)
+                self._browser.goto(deps.resolve_url(self._render(step.url, src)), timeout_ms)
             elif action == "click":
                 self._browser.click(self._render(step.selector, src), timeout_ms)
             elif action == "fill":
@@ -41,7 +41,7 @@ class BrowserStepHandler(StepHandler):
             elif action == "wait_for_selector":
                 self._browser.wait_for_selector(self._render(step.selector, src), timeout_ms)
             elif action == "wait_for_url":
-                self._browser.wait_for_url(self._render(step.url, src), timeout_ms)
+                self._browser.wait_for_url(deps.resolve_url(self._render(step.url, src)), timeout_ms)
             elif action == "text":
                 value = self._browser.text(self._render(step.selector, src))
                 if step.save_as:

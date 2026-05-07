@@ -56,7 +56,9 @@ class DummySecretProvider:
 @dataclass(frozen=True)
 class DummyUrlResolver:
     def resolve_url(self, url: str) -> str:
-        return url
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+        return f"https://base.example{url}"
 
 
 @dataclass(frozen=True)
@@ -68,7 +70,8 @@ class DummyLogger:
 
 
 def test_browser_handler_executes_goto() -> None:
-    handler = BrowserStepHandler(DummyBrowserClient(), TemplateRenderer())
+    browser = DummyBrowserClient()
+    handler = BrowserStepHandler(browser, TemplateRenderer())
     step = BrowserStep(id="open", name="open", action="goto", url="https://example.com")
     ctx = RunContext(run_id="r1", vars={}, state={}, result={})
     deps = ExecutionDeps(DummySecretProvider(), DummyUrlResolver(), DummyLogger())
@@ -76,6 +79,7 @@ def test_browser_handler_executes_goto() -> None:
     outcome = handler.handle(step, ctx, deps)
 
     assert outcome.ok is True
+    assert browser.calls[0] == ("goto", "https://example.com", None)
 
 
 def test_browser_handler_saves_text_to_state() -> None:
@@ -88,3 +92,16 @@ def test_browser_handler_saves_text_to_state() -> None:
 
     assert outcome.ok is True
     assert ctx.state["page_title"] == "Example Domain"
+
+
+def test_browser_handler_resolves_relative_url_for_goto() -> None:
+    browser = DummyBrowserClient()
+    handler = BrowserStepHandler(browser, TemplateRenderer())
+    step = BrowserStep(id="open", name="open", action="goto", url="/login")
+    ctx = RunContext(run_id="r1", vars={}, state={}, result={})
+    deps = ExecutionDeps(DummySecretProvider(), DummyUrlResolver(), DummyLogger())
+
+    outcome = handler.handle(step, ctx, deps)
+
+    assert outcome.ok is True
+    assert browser.calls[0] == ("goto", "https://base.example/login", None)
