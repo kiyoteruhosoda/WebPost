@@ -230,7 +230,10 @@ def _build_execution_components(
         LogStepHandler(renderer),
     ]
 
-    contains_browser_step = any(isinstance(step, BrowserStep) for step in scenario.steps)
+    contains_browser_step = any(
+        isinstance(step, BrowserStep) and getattr(step, "enabled", True)
+        for step in scenario.steps
+    )
     browser_client: Optional[PlaywrightBrowserClient] = None
     if contains_browser_step:
         browser_defaults = getattr(scenario.defaults, "browser", None)

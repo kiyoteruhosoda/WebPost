@@ -25,7 +25,7 @@ class BrowserStepHandler(StepHandler):
                 vars=ctx.vars,
                 state=ctx.state,
                 secrets=deps.secret_provider.get(),
-                last={},
+                last=ctx.last or {},
             )
             action = step.action.lower()
             timeout_ms = step.timeout_ms

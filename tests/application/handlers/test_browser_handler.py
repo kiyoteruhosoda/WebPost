@@ -107,3 +107,16 @@ def test_browser_handler_resolves_relative_url_for_goto() -> None:
 
     assert outcome.ok is True
     assert browser.calls[0] == ("goto", "https://base.example/login", None)
+
+
+def test_browser_handler_renders_with_last_context() -> None:
+    browser = DummyBrowserClient()
+    handler = BrowserStepHandler(browser, TemplateRenderer())
+    step = BrowserStep(id="open", name="open", action="goto", url="${last.url}")
+    ctx = RunContext(run_id="r1", vars={}, state={}, last={"url": "/from-last"}, result={})
+    deps = ExecutionDeps(DummySecretProvider(), DummyUrlResolver(), DummyLogger())
+
+    outcome = handler.handle(step, ctx, deps)
+
+    assert outcome.ok is True
+    assert browser.calls[0] == ("goto", "https://base.example/from-last", None)
