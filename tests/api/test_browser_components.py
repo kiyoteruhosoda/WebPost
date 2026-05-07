@@ -66,3 +66,29 @@ def test_build_components_with_browser_step_registers_browser_handler(monkeypatc
     assert browser_client is not None
     assert created["count"] == 1
     assert any(isinstance(h, BrowserStepHandler) for h in executor._registry._handlers)
+
+
+def test_build_components_with_only_disabled_browser_steps_does_not_create_playwright_client(monkeypatch) -> None:
+    created = {"count": 0}
+
+    class DummyBrowserClient:
+        def __init__(self, headless: bool = True, **_kwargs) -> None:
+            created["count"] += 1
+
+    monkeypatch.setattr(main, "PlaywrightBrowserClient", DummyBrowserClient)
+
+    scenario = _scenario_with_steps([
+        BrowserStep(id="b1", name="b1", action="goto", url="/home", enabled=False)
+    ])
+    request = RunScenarioRequest(vars={}, secrets={})
+
+    executor, _ctx, _deps, browser_client = main._build_execution_components(
+        scenario,
+        request,
+        main._build_logger("run-3"),
+        "run-3",
+    )
+
+    assert browser_client is None
+    assert created["count"] == 0
+    assert all(not isinstance(h, BrowserStepHandler) for h in executor._registry._handlers)
