@@ -56,6 +56,12 @@ meta:
 defaults:
   http:
     base_url: https://example.com
+  browser:
+    viewport_width: 1200
+    viewport_height: 800
+    user_agent: TestAgent/1.0
+    locale: ja-JP
+    timezone_id: Asia/Tokyo
 steps:
   - id: request
     type: http
@@ -93,6 +99,8 @@ steps:
     assert scenario.meta.version == 2
     assert scenario.defaults.http is not None
     assert scenario.defaults.http.base_url == "https://example.com"
+    assert scenario.defaults.browser is not None
+    assert scenario.defaults.browser.viewport_width == 1200
     assert len(scenario.steps) == 5
     assert isinstance(scenario.steps[0], HttpStep)
     assert scenario.steps[0].request.form_list == [("foo", "bar")]

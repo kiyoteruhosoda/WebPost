@@ -20,7 +20,7 @@ def test_build_components_without_browser_step_does_not_create_playwright_client
     created = {"count": 0}
 
     class DummyBrowserClient:
-        def __init__(self, headless: bool = True) -> None:
+        def __init__(self, headless: bool = True, **_kwargs) -> None:
             created["count"] += 1
 
     monkeypatch.setattr(main, "PlaywrightBrowserClient", DummyBrowserClient)
@@ -46,7 +46,7 @@ def test_build_components_with_browser_step_registers_browser_handler(monkeypatc
     created = {"count": 0}
 
     class DummyBrowserClient:
-        def __init__(self, headless: bool = True) -> None:
+        def __init__(self, headless: bool = True, **_kwargs) -> None:
             created["count"] += 1
 
     monkeypatch.setattr(main, "PlaywrightBrowserClient", DummyBrowserClient)

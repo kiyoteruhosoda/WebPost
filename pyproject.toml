@@ -44,3 +44,6 @@ addopts = [
     "--strict-markers",
     "-ra",
 ]
+markers = [
+    "integration: marks tests that use real external integrations",
+]

@@ -233,7 +233,15 @@ def _build_execution_components(
     contains_browser_step = any(isinstance(step, BrowserStep) for step in scenario.steps)
     browser_client: Optional[PlaywrightBrowserClient] = None
     if contains_browser_step:
-        browser_client = PlaywrightBrowserClient(headless=True)
+        browser_defaults = getattr(scenario.defaults, "browser", None)
+        browser_client = PlaywrightBrowserClient(
+            headless=True,
+            viewport_width=getattr(browser_defaults, "viewport_width", None),
+            viewport_height=getattr(browser_defaults, "viewport_height", None),
+            user_agent=getattr(browser_defaults, "user_agent", None),
+            locale=getattr(browser_defaults, "locale", None),
+            timezone_id=getattr(browser_defaults, "timezone_id", None),
+        )
         handlers.insert(1, BrowserStepHandler(browser_client, renderer))
     registry = HandlerRegistry(handlers)
     executor = StepExecutor(registry)

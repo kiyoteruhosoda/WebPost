@@ -42,6 +42,9 @@ class BrowserStepHandler(StepHandler):
                 self._browser.wait_for_selector(self._render(step.selector, src), timeout_ms)
             elif action == "wait_for_url":
                 self._browser.wait_for_url(deps.resolve_url(self._render(step.url, src)), timeout_ms)
+            elif action == "wait_for_load_state":
+                state = self._render(step.value, src) or "load"
+                self._browser.wait_for_load_state(state=state, timeout_ms=timeout_ms)
             elif action == "text":
                 value = self._browser.text(self._render(step.selector, src))
                 if step.save_as:
@@ -60,6 +63,12 @@ class BrowserStepHandler(StepHandler):
 
             return StepOutcome(ok=True)
         except Exception as exc:
+            try:
+                failure_path = Path("tmp/browser") / ctx.run_id / f"{step.id}_error.png"
+                self._browser.screenshot(str(failure_path))
+                ctx.state[f"{step.id}_error_screenshot"] = str(failure_path)
+            except Exception:
+                pass
             return StepOutcome(ok=False, error_message=str(exc))
 
     def _render(self, value: str | None, src: RenderSources) -> str:

@@ -4,12 +4,29 @@ from pathlib import Path
 from typing import Optional
 
 class PlaywrightBrowserClient:
-    def __init__(self, headless: bool = True) -> None:
+    def __init__(
+        self,
+        headless: bool = True,
+        viewport_width: Optional[int] = None,
+        viewport_height: Optional[int] = None,
+        user_agent: Optional[str] = None,
+        locale: Optional[str] = None,
+        timezone_id: Optional[str] = None,
+    ) -> None:
         from playwright.sync_api import sync_playwright
 
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=headless)
-        self._context = self._browser.new_context()
+        context_kwargs = {}
+        if viewport_width and viewport_height:
+            context_kwargs["viewport"] = {"width": viewport_width, "height": viewport_height}
+        if user_agent:
+            context_kwargs["user_agent"] = user_agent
+        if locale:
+            context_kwargs["locale"] = locale
+        if timezone_id:
+            context_kwargs["timezone_id"] = timezone_id
+        self._context = self._browser.new_context(**context_kwargs)
         self._page = self._context.new_page()
 
     def goto(self, url: str, timeout_ms: Optional[int] = None) -> None:
@@ -29,6 +46,9 @@ class PlaywrightBrowserClient:
 
     def wait_for_url(self, url: str, timeout_ms: Optional[int] = None) -> None:
         self._page.wait_for_url(url, timeout=timeout_ms)
+
+    def wait_for_load_state(self, state: str = "load", timeout_ms: Optional[int] = None) -> None:
+        self._page.wait_for_load_state(state=state, timeout=timeout_ms)
 
     def text(self, selector: str) -> str:
         value = self._page.text_content(selector)

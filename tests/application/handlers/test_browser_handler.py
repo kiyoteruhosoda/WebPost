@@ -30,6 +30,8 @@ class DummyBrowserClient:
 
     def wait_for_url(self, url: str, timeout_ms=None) -> None:
         self.calls.append(("wait_for_url", url, timeout_ms))
+    def wait_for_load_state(self, state: str = "load", timeout_ms=None) -> None:
+        self.calls.append(("wait_for_load_state", state, timeout_ms))
 
     def text(self, selector: str) -> str:
         self.calls.append(("text", selector))
