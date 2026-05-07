@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Optional
+
+
+LOGGER = logging.getLogger(__name__)
+
 
 class PlaywrightBrowserClient:
     def __init__(
@@ -77,17 +82,17 @@ class PlaywrightBrowserClient:
         try:
             if context is not None:
                 context.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            LOGGER.warning("Failed to close browser context", exc_info=exc)
 
         try:
             if browser is not None:
                 browser.close()
-        except Exception:
-            pass
+        except Exception as exc:
+            LOGGER.warning("Failed to close browser instance", exc_info=exc)
 
         try:
             if playwright is not None:
                 playwright.stop()
-        except Exception:
-            pass
+        except Exception as exc:
+            LOGGER.warning("Failed to stop playwright runtime", exc_info=exc)
